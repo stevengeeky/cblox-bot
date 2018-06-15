@@ -1,0 +1,152 @@
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, 
+figure, figcaption, footer, header, hgroup, 
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 100%;
+    font: inherit;
+    vertical-align: baseline;
+}
+article, aside, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section {
+    display: block;
+}
+body {
+    line-height: 1;
+}
+ol, ul {
+    list-style: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+    content: '';
+    content: none;
+}
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+html, body {
+    width:100%;
+    height:100%;
+    margin:0;
+    padding:0;
+}
+
+body {
+    text-align:center;
+    background:black;
+    color:white;
+    
+}
+
+container {
+    text-align:left;
+    display:inline-block;
+    max-width:500px;
+}
+
+.board {
+    display:inline-block;
+}
+
+.tile {
+    padding:0;
+    margin:0;
+    opacity: .5;
+}
+
+.tile.enabled {
+    opacity: 1;
+    cursor:pointer;
+}
+
+.stockBanner {
+    padding:2px;
+    border-radius:2px;
+    background:#a0a;
+    color:#ccc;
+    font-weight:bold;
+    font-size:12px;
+    position:absolute;
+    right:-3px;
+    top:-3px;
+    font-family:"Monaco";
+    z-index:5;
+    opacity:.7;
+    pointer-events:none;
+}
+.stockBanner.enabled {
+    opacity:1;
+    background:#b4b;
+    color:white;
+}
+
+@keyframes blinkOutside {
+    0% {
+        border:4px solid rgba(255, 255, 255, .3);
+    }
+    50% {
+    }
+}
+@keyframes blinkInside {
+    0% {
+        border:2px solid rgba(170, 170, 170, .7);
+    }
+    50% {
+    }
+}
+
+.select_box {
+    position:absolute;
+    z-index:5;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    box-sizing:border-box;
+    pointer-events:none;
+    animation:blinkOutside .5s linear infinite;
+}
+.select_box .select_outline {
+    box-sizing:border-box;
+    display:inline-block;
+    width:100%;
+    height:100%;
+    animation:blinkInside .5s linear infinite;
+}
+
+@keyframes mineLight {
+    0% {
+        fill: rgb(13, 179, 13);
+    }
+    50% {
+        fill: rgb(47, 221, 47);
+    }
+    100% {
+        fill: transparent;
+    }
+}
+
+.mineLights {
+    animation:mineLight .5s linear infinite alternate;
+}
+
+.mineMetal.board {
+    opacity:.5;
+}
+.mineMetal.board .border {
+    opacity:0;
+}

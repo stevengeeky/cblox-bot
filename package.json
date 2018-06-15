@@ -1,0 +1,16 @@
+{
+  "name": "javascript.cosmicblocks",
+  "version": "1.0.0",
+  "description": "A bot for Cosmic Blocks, a game by Narcissa Wright",
+  "main": "main.js",
+  "dependencies": {
+    "color": "^3.0.0",
+    "vue": "^2.5.16"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "stevengeeky",
+  "license": "ISC"
+}
