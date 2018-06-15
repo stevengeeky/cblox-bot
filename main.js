@@ -119,7 +119,7 @@ Vue.component('tile', {
             }
         },
         drawSvg: function(tilename) {
-            if (tilename == 'mine' && this.opt.placer != 1) {
+            if (tilename == 'mine' && this.opt.properties.placer != 1) {
                 this.$refs.element.innerHTML = "";
             }
             else {
@@ -136,7 +136,7 @@ Vue.component('tile', {
             let borderColor = Color("#bababa");
             let type = this.opt.type;
             
-            if (type == 'mine' && this.opt.placer != 1) type = 'blank';
+            if (type == 'mine' && this.opt.properties.placer != 1) type = 'blank';
             if (type == 'collision') {
                 this.border = '1px solid black';
                 this.background = 'black';
@@ -300,6 +300,7 @@ new Vue({
     
     data () {
         return {
+            round: null,
             board: null,
             left: null,
             right: null,
@@ -337,6 +338,7 @@ new Vue({
     
     methods: {
         init: function() {
+            this.round = 0;
             this.left = playerUtil.create(4, 5);
             this.right = playerUtil.create(16, 5);
             this.board = boardUtil.create(21, 11, this.left, this.right);
@@ -440,6 +442,7 @@ new Vue({
                 });
                 let botBoard = {
                     data: {},
+                    round: this.round,
                     width: this.board.width,
                     height: this.board.height,
                     left_ownership: this.leftMap,
@@ -449,8 +452,12 @@ new Vue({
                 for (let x = 0; x < this.board.width; x++) {
                     for (let y = 0; y < this.board.height; y++) {
                         let tile = this.board.get(x, y);
-                        if (tile.type == 'mine' && tile.properties.placer != 2) continue;
-                        botBoard.data[[x,y]] = tile;
+                        if (tile.type == 'mine' && tile.properties.placer != 2) {
+                            botBoard.data[[x,y]] = tiles.blank({x, y});
+                        }
+                        else {
+                            botBoard.data[[x,y]] = tile;
+                        }
                     }
                 }
                 let botTile = bot.make_move(botBoard);
@@ -490,6 +497,7 @@ new Vue({
                 this.previewMap = {};
                 this.updateBoard();
                 this.previewTile = null;
+                this.round++;
             }
         },
         stockMouseenter: function(opt) {

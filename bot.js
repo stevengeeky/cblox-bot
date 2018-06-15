@@ -12,6 +12,7 @@ bot.make_move = function(board) {
     let availableMoves = [];
     let blankTile = tiles.blank({});
     for (let stock in board.stock) {
+        if (!board.stock[stock]) continue;
         if (tiles[stock]({}).canPlaceOn(blankTile)) {
             availableMoves.push(stock);
         }
@@ -19,6 +20,7 @@ bot.make_move = function(board) {
     
     let whichBlank = Math.floor(Math.random() * blanks.length);
     let whichTile = Math.floor(Math.random() * availableMoves.length);
+    
     return tiles[availableMoves[whichTile]]({
         x: blanks[whichBlank].properties.x,
         y: blanks[whichBlank].properties.y,

@@ -447,7 +447,7 @@ exports.circleStar = args => ({
  */
 exports.mine = args => ({
     type: 'mine',
-    canPlaceOn: tile => /blank/.test(tile.type),
+    canPlaceOn: tile => /blank|mine/.test(tile.type),
     whenPlacedOn: function(){ return this; },
     properties: {
         x: args.x,
@@ -501,7 +501,6 @@ exports.reclaim = args => ({
         return exports['blank']({
             x: this.properties.x,
             y: this.properties.y,
-            placer: this.properties.placer,
             owners: [],
         });
     },

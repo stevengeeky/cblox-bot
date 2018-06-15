@@ -86,12 +86,17 @@ exports.create = (width, height, first, second) => ({
             throw `Error: ${x}, ${y} not within range of board width and height`;
         }
         if (force) {
+            tile.properties.x = x;
+            tile.properties.y = y;
             this.data[[x, y]] = tile;
         }
         else {
             let dest = this.get(x, y);
             if (tile.canPlaceOn(dest)) {
                 let newTile = tile.whenPlacedOn(dest);
+                newTile.properties.x = x;
+                newTile.properties.y = y;
+                
                 if (dest.type == 'mine') {
                     newTile = tiles.collision({ x, y });
                 }
