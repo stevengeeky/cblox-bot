@@ -2,7 +2,9 @@
 
 A bot for cosmic blocks, a game by Narcissa Wright
 
-![preview](preview.png)
+<div style="text-align:center">
+    <img src='preview.png' />
+</div>
 
 ## Usage
 
