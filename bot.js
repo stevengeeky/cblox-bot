@@ -98,13 +98,26 @@ function get_weights(board) {
     return weights;
 }
 
+/**
+ * Have the bot evaluate whether it's winning or not
+ * in the given position
+ */
+function evaluate_position(board) {
+    let botDistance = compute_distances(board,
+                        {   x: board.left_base.properties.x,
+                            y: board.left_base.properties.y });
+    let playerDistance = compute_distances(board,
+                        {   x: board.right_base.properties.x,
+                            y: board.right_base.properties.y });
+}
+
 bot.compute_distances = compute_distances;
 /**
  * Compute closest distances to the nearest winning path 
  */
-function compute_distances(board) {
+function compute_distances(board, destination) {
     let visited = {};
-    let winning_paths = draw_winning_paths(board);
+    let winning_paths = draw_winning_paths(board, destination);
     let visitX, visitY;
     for (let x = 0; x < board.width; x++) {
         for (let y = 0; y < board.height; y++) {
@@ -135,14 +148,14 @@ function compute_distances(board) {
             if (winning_paths[[xy.x, xy.y]]) depth = 1;
             visited[[xy.x, xy.y]] = depth;
             
-            toExplore.push({ depth: depth + 1, x: xy.x - 1, y: xy.y });
-            toExplore.push({ depth: depth + 1, x: xy.x + 1, y: xy.y });
-            toExplore.push({ depth: depth + 1, x: xy.x, y: xy.y - 1 });
-            toExplore.push({ depth: depth + 1, x: xy.x, y: xy.y + 1 });
-            toExplore.push({ depth: depth + 1, x: xy.x + 1, y: xy.y + 1 });
-            toExplore.push({ depth: depth + 1, x: xy.x + 1, y: xy.y - 1 });
-            toExplore.push({ depth: depth + 1, x: xy.x - 1, y: xy.y + 1 });
-            toExplore.push({ depth: depth + 1, x: xy.x - 1, y: xy.y - 1 });
+            exploreNext.push({ depth: depth + 1, x: xy.x - 1, y: xy.y });
+            exploreNext.push({ depth: depth + 1, x: xy.x + 1, y: xy.y });
+            exploreNext.push({ depth: depth + 1, x: xy.x, y: xy.y - 1 });
+            exploreNext.push({ depth: depth + 1, x: xy.x, y: xy.y + 1 });
+            exploreNext.push({ depth: depth + 1, x: xy.x + 1, y: xy.y + 1 });
+            exploreNext.push({ depth: depth + 1, x: xy.x + 1, y: xy.y - 1 });
+            exploreNext.push({ depth: depth + 1, x: xy.x - 1, y: xy.y + 1 });
+            exploreNext.push({ depth: depth + 1, x: xy.x - 1, y: xy.y - 1 });
         }
         
         toExplore = exploreNext;
@@ -152,11 +165,13 @@ function compute_distances(board) {
 }
 
 bot.draw_winning_paths = draw_winning_paths;
-function draw_winning_paths(board) {
+function draw_winning_paths(board, destination) {
     let visited = {};
     
-    let toExplore = [{x: board.left_base.properties.x,
-                      y: board.left_base.properties.y}];
+    let toExplore = [destination ||
+                    {   x: board.left_base.properties.x,
+                        y: board.left_base.properties.y}];
+    
     let depth = 1;
     let moves = [];
     while (toExplore.length > 0) {
