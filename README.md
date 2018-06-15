@@ -2,6 +2,8 @@
 
 A bot for cosmic blocks, a game by Narcissa Wright
 
+![preview](preview.png)
+
 ## Usage
 
 ```

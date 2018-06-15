@@ -412,11 +412,11 @@ new Vue({
         },
 
         mouseenter: function(tile) {
-            
+            this.previewMap = boardUtil.traverse(tile.properties.x, tile.properties.y, this.board);
         },
 
         mouseleave: function(tile) {
-            console.log(tile);
+            
         },
     },
 });
