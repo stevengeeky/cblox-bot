@@ -103,16 +103,55 @@ function get_weights(board) {
  * in the given position
  */
 function evaluate_position(board) {
-    // let botDistance = compute_distances(board,
-    //                     {   x: board.left_base.properties.x,
-    //                         y: board.left_base.properties.y });
-    // let playerDistance = compute_distances(board,
-    //                     {   x: board.right_base.properties.x,
-    //                         y: board.right_base.properties.y });
+    let bot_side = compute_distances(board,
+                        {   x: board.left_base.properties.x,
+                            y: board.left_base.properties.y });
+    let player_side = compute_distances(board,
+                        {   x: board.right_base.properties.x,
+                            y: board.right_base.properties.y });
+    
+    let botMap = {};
+    let playerMap = {};
+    for (let x = 0; x < board.width; x++) {
+        for (let y = 0; y < board.height; y++) {
+            botMap[[x,y]] = 0;
+            playerMap[[x,y]] = 0;
+        }
+    }
 }
 
 bot.get_candidates = get_candidates;
 function get_candidates(board) {
+    let visited = {};
+    for (let x = 0; x < board.width; x++) {
+        for (let y = 0; y < board.height; y++) {
+            visited[[x + 1, y]] = 1;
+            visited[[x - 1, y]] = 1;
+            visited[[x, y + 1]] = 1;
+            visited[[x, y - 1]] = 1;
+            
+            visited[[x + 2, y]] = 1;
+            visited[[x - 2, y]] = 1;
+            visited[[x, y + 2]] = 1;
+            visited[[x, y - 2]] = 1;
+            
+            visited[[x + 1, y + 1]] = 1;
+            visited[[x - 1, y - 1]] = 1;
+            visited[[x - 1, y + 1]] = 1;
+            visited[[x + 1, y - 1]] = 1;
+            
+            visited[[x + 2, y + 2]] = 1;
+            visited[[x - 2, y - 2]] = 1;
+            visited[[x - 2, y + 2]] = 1;
+            visited[[x + 2, y - 2]] = 1;
+        }
+    }
+    
+    return visited;
+}
+
+bot.get_candidates = get_specific_candidates;
+function get_specific_candidates(board) {
     let visited = {};
     let samples = {};
     for (let tiletype in tiles) {
