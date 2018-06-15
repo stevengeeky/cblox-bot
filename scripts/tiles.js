@@ -526,7 +526,7 @@ exports.collision = args => ({
         x: args.x,
         y: args.y,
         owners: args.owners || [],
-        fade: 5,
+        fade: args.fade || 6,
         placer: null,
         range: [],
     },

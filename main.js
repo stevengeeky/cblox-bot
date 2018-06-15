@@ -130,18 +130,24 @@ Vue.component('tile', {
             let baseBackground = Color('rgb(200, 200, 200)');
             let borderColor = Color("#bababa");
             
+            if (this.opt.type == 'collision') {
+                this.border = '1px solid black';
+                this.background = 'black';
+                return;
+            }
+            
             if (this.hover) baseBackground = baseBackground.mix(Color('white'));
             if (this.highlight) {
                 if (this.highlight.preview) {
                     baseBackground = baseBackground.lighten(.3);
                 }
                 if (this.highlight.left) {
-                    baseBackground = baseBackground.mix(Color('#faf'));
-                    borderColor = borderColor.mix(Color("#d9d"));
+                    baseBackground = baseBackground.mix(Color('#5f5'));
+                    borderColor = borderColor.mix(Color("#5d5"));
                 }
                 if (this.highlight.right) {
-                    baseBackground = baseBackground.mix(Color('#f94'));
-                    borderColor = borderColor.mix(Color("#d94"));
+                    baseBackground = baseBackground.mix(Color('#eae'));
+                    borderColor = borderColor.mix(Color("#c9c"));
                 }
             }
             
@@ -224,8 +230,15 @@ new Vue({
                                     @mouseenter="mouseenter"
                                     @mouseleave="mouseleave"></tile>
                             </div>
-                            <div v-if="selected && selected.properties.x == x && selected.properties.y == y" class="select_box">
-                                    <div class="select_outline"></div>
+                            <div v-if="board.get(x,y).type == 'collision'" class="collisionFade">
+                                <div style="display:table;width:100%;height:100%;">
+                                    <div style="display:table-cell;vertical-align:middle;text-align:center;">
+                                        {{board.get(x,y).properties.fade}}
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-if="selected && selected.properties.x == x && selected.properties.y == y" class="selectBox">
+                                    <div class="selectOutline"></div>
                                 </div>
                             </div>
                         </td>
@@ -233,32 +246,48 @@ new Vue({
                 </table>
             </div>
             
-            <div v-if="topStock && bottomStock">
-                <div v-for="tilename in topStock" style="display:inline-block;position:relative;">
-                    <stockTile
-                        :width='"80px"'
-                        :height='"80px"'
-                        :opt="{ stock: true, type: tilename }"
-                        :enabled='canPlaceTile(tilename)'
-                        @click='stockClicked'
-                        @mouseenter='stockMouseenter'
-                        @mouseleave='stockMouseleave'></stockTile>
-                    <div :class="{ 'stockBanner': true, enabled: canPlaceTile(tilename) }" v-if="left.stock[tilename] > 0 && left.stock[tilename] < Infinity">{{left.stock[tilename]}}</div>
-                </div>
-            </div>
-            <div>
-                <div v-for="tilename in bottomStock" style="display:inline-block;position:relative;">
-                    <stockTile
-                        :width='"80px"'
-                        :height='"80px"'
-                        :opt="{ stock: true, type: tilename }"
-                        :enabled='canPlaceTile(tilename)'
-                        @click='stockClicked'
-                        @mouseenter='stockMouseenter'
-                        @mouseleave='stockMouseleave'></stockTile>
-                    <div :class="{ 'stockBanner': true, enabled: canPlaceTile(tilename) }" v-if="left.stock[tilename] > 0 && left.stock[tilename] < Infinity">{{left.stock[tilename]}}</div>
-                </div>
-            </div>
+            <table style="width:100%;">
+                <tr>
+                    <td>
+                        <div v-if="topStock && bottomStock">
+                            <div>
+                                <div v-for="tilename in topStock" style="display:inline-block;position:relative;">
+                                    <stockTile
+                                        :width='"80px"'
+                                        :height='"80px"'
+                                        :opt="{ stock: true, type: tilename }"
+                                        :enabled='canPlaceTile(tilename)'
+                                        @click='stockClicked'
+                                        @mouseenter='stockMouseenter'
+                                        @mouseleave='stockMouseleave'></stockTile>
+                                    <div :class="{ 'stockBanner': true, enabled: canPlaceTile(tilename) }" v-if="left.stock[tilename] > 0 && left.stock[tilename] < Infinity">{{left.stock[tilename]}}</div>
+                                </div>
+                            </div>
+                            <div>
+                                <div v-for="tilename in bottomStock" style="display:inline-block;position:relative;">
+                                    <stockTile
+                                        :width='"80px"'
+                                        :height='"80px"'
+                                        :opt="{ stock: true, type: tilename }"
+                                        :enabled='canPlaceTile(tilename)'
+                                        @click='stockClicked'
+                                        @mouseenter='stockMouseenter'
+                                        @mouseleave='stockMouseleave'></stockTile>
+                                    <div :class="{ 'stockBanner': true, enabled: canPlaceTile(tilename) }" v-if="left.stock[tilename] > 0 && left.stock[tilename] < Infinity">{{left.stock[tilename]}}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="hoverInfo">
+                        <div v-if="hoverTile">
+                            <div>type: {{hoverTile.type}}</div>
+                            <div>placer: {{hoverTile.properties.placer}}</div>
+                            <div>x: {{hoverTile.properties.x}}</div>
+                            <div>y: {{hoverTile.properties.y}}</div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
         </div>
     `,
     
@@ -273,6 +302,7 @@ new Vue({
             topStock: null,
             bottomStock: null,
             
+            hoverTile: null,
             previewTile: null,
             previewMap: {},
             leftMap: {},
@@ -353,9 +383,20 @@ new Vue({
             for (let x = 0; x < this.board.width; x++) {
                 for (let y = 0; y < this.board.height; y++) {
                     let owners = [];
-                    if (this.leftMap[[x,y]]) owners.push(1);
-                    if (this.rightMap[[x,y]]) owners.push(2);
-                    this.board.get(x,y).properties.owners = owners;
+                    let tile = this.board.get(x,y);
+                    if (tile.type == 'collision') {
+                        tile.properties.fade--;
+                        if (tile.properties.fade <= 0) {
+                            tile = tiles.blank({x, y});
+                            this.board.set(x, y, tile, true);
+                        }
+                    }
+                    
+                    if (tile.type != 'collision') {
+                        if (this.leftMap[[x,y]]) owners.push(1);
+                        if (this.rightMap[[x,y]]) owners.push(2);
+                        tile.properties.owners = owners;
+                    }
                 }
             }
         },
@@ -412,11 +453,13 @@ new Vue({
         },
 
         mouseenter: function(tile) {
+            this.hoverTile = tile;
             this.previewMap = boardUtil.traverse(tile.properties.x, tile.properties.y, this.board);
         },
 
         mouseleave: function(tile) {
-            
+            this.hoverTile = null;
+            this.previewMap = {};
         },
     },
 });

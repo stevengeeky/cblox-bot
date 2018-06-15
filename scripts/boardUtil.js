@@ -91,7 +91,11 @@ exports.create = (width, height, first, second) => ({
         else {
             let dest = this.get(x, y);
             if (tile.canPlaceOn(dest)) {
-                this.data[[x, y]] = tile.whenPlacedOn(dest);
+                let newTile = tile.whenPlacedOn(dest);
+                if (dest.type == 'mine') {
+                    newTile = tiles.collision({ x, y });
+                }
+                this.data[[x, y]] = newTile;
             }
             else {
                 throw `Error: Cannot place ${tile.type} on ${dest.type}`;
