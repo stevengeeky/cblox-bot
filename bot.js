@@ -110,14 +110,7 @@ function evaluate_position(board) {
                         {   x: board.right_base.properties.x,
                             y: board.right_base.properties.y });
     
-    let botMap = {};
-    let playerMap = {};
-    for (let x = 0; x < board.width; x++) {
-        for (let y = 0; y < board.height; y++) {
-            botMap[[x,y]] = 0;
-            playerMap[[x,y]] = 0;
-        }
-    }
+    
 }
 
 bot.get_candidates = get_candidates;
@@ -125,25 +118,27 @@ function get_candidates(board) {
     let visited = {};
     for (let x = 0; x < board.width; x++) {
         for (let y = 0; y < board.height; y++) {
-            visited[[x + 1, y]] = 1;
-            visited[[x - 1, y]] = 1;
-            visited[[x, y + 1]] = 1;
-            visited[[x, y - 1]] = 1;
-            
-            visited[[x + 2, y]] = 1;
-            visited[[x - 2, y]] = 1;
-            visited[[x, y + 2]] = 1;
-            visited[[x, y - 2]] = 1;
-            
-            visited[[x + 1, y + 1]] = 1;
-            visited[[x - 1, y - 1]] = 1;
-            visited[[x - 1, y + 1]] = 1;
-            visited[[x + 1, y - 1]] = 1;
-            
-            visited[[x + 2, y + 2]] = 1;
-            visited[[x - 2, y - 2]] = 1;
-            visited[[x - 2, y + 2]] = 1;
-            visited[[x + 2, y - 2]] = 1;
+            if (board.data[[x,y]].type != 'blank' && board.data[[x,y]].type != 'mine') {
+                visited[[x + 1, y]] = 1;
+                visited[[x - 1, y]] = 1;
+                visited[[x, y + 1]] = 1;
+                visited[[x, y - 1]] = 1;
+                
+                visited[[x + 2, y]] = 1;
+                visited[[x - 2, y]] = 1;
+                visited[[x, y + 2]] = 1;
+                visited[[x, y - 2]] = 1;
+                
+                visited[[x + 1, y + 1]] = 1;
+                visited[[x - 1, y - 1]] = 1;
+                visited[[x - 1, y + 1]] = 1;
+                visited[[x + 1, y - 1]] = 1;
+                
+                visited[[x + 2, y + 2]] = 1;
+                visited[[x - 2, y - 2]] = 1;
+                visited[[x - 2, y + 2]] = 1;
+                visited[[x + 2, y - 2]] = 1;
+            }
         }
     }
     
