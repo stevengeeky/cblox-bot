@@ -145,28 +145,34 @@ Vue.component('tile', {
             
             if (this.hover) baseBackground = baseBackground.mix(Color('white'));
             if (this.highlight) {
-                // if (this.highlight.preview) {
-                //     baseBackground = baseBackground.lighten(.3);
-                // }
-                // if (this.highlight.left) {
-                //     baseBackground = baseBackground.mix(Color('#5f5'));
-                //     borderColor = borderColor.mix(Color("#5d5"));
-                // }
-                // if (this.highlight.right) {
-                //     baseBackground = baseBackground.mix(Color('#eae'));
-                //     borderColor = borderColor.mix(Color("#c9c"));
-                // }
-                if (this.highlight.weight) {
+                if (this.highlight.preview) {
+                    baseBackground = baseBackground.lighten(.3);
+                }
+                if (this.highlight.left) {
+                    baseBackground = baseBackground.mix(Color('#5f5'));
+                    borderColor = borderColor.mix(Color("#5d5"));
+                }
+                if (this.highlight.right) {
+                    baseBackground = baseBackground.mix(Color('#eae'));
+                    borderColor = borderColor.mix(Color("#c9c"));
+                }
+                if (typeof this.highlight.weight == 'number') {
                     let val = Math.round(this.highlight.weight * 0xff);
                     let r = val;
                     let weightColor = Color(`rgb(${r}, 0, 0)`);
                     baseBackground = baseBackground.mix(weightColor);
                     borderColor = borderColor.mix(weightColor);
                 }
-                if (this.highlight.mask) {
+                if (typeof this.highlight.mask == 'number') {
                     let weightColor = this.highlight.mask
                                         ? Color(`rgb(0, 0, 255)`)
                                         : Color(`rgb(255, 0, 0)`);
+                    baseBackground = baseBackground.mix(weightColor);
+                    borderColor = borderColor.mix(weightColor);
+                }
+                if (typeof this.highlight.short == 'number') {
+                    let blue = Math.round(this.highlight.short * 0xff);
+                    let weightColor = Color(`rgb(0, 0, ${blue})`);
                     baseBackground = baseBackground.mix(weightColor);
                     borderColor = borderColor.mix(weightColor);
                 }
@@ -223,6 +229,9 @@ Vue.component('tile', {
         'highlight.mask': function() {
             this.updateStyle();
         },
+        'highlight.short': function() {
+            this.updateStyle();
+        },
     }
 });
 
@@ -254,6 +263,7 @@ new Vue({
                                         right: rightMap && rightMap[[x,y]],
                                         weight: weightMap && weightMap[[x,y]],
                                         mask: maskMap && maskMap[[x,y]],
+                                        short: shortDistances && shortDistances[[x,y]],
                                     }"
                                     @click="tileClicked"
                                     @mouseenter="mouseenter"
@@ -263,13 +273,6 @@ new Vue({
                                 <div style="display:table;width:100%;height:100%;">
                                     <div style="display:table-cell;vertical-align:middle;text-align:center;">
                                         {{board.get(x,y).properties.fade}}
-                                    </div>
-                                </div>
-                            </div>
-                            <div v-if="shortDistances[[x,y]]" class="shortDistance">
-                                <div style="display:table;width:100%;height:100%;">
-                                    <div style="display:table-cell;vertical-align:middle;text-align:center;">
-                                        {{shortDistances[[x,y]]-1}}
                                     </div>
                                 </div>
                             </div>
@@ -444,7 +447,19 @@ new Vue({
             
             // this.weightMap = bot.get_weights(this.makeBotBoard());
             // this.maskMap = bot.draw_winning_paths(this.makeBotBoard());
-            this.shortDistances = bot.compute_distances(this.makeBotBoard());
+            let shortDistances = bot.compute_distances(this.makeBotBoard());
+            let maxDistance = 1;
+            for (let x = 0; x < this.board.width; x++) {
+                for (let y = 0; y < this.board.height; y++) {
+                    maxDistance = Math.max(maxDistance, shortDistances[[x,y]]);
+                }
+            }
+            for (let x = 0; x < this.board.width; x++) {
+                for (let y = 0; y < this.board.height; y++) {
+                    shortDistances[[x,y]] /= maxDistance;
+                }
+            }
+            this.shortDistances = shortDistances;
         },
         
         canPlaceTile: function(tilename) {
