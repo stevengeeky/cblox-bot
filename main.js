@@ -145,16 +145,30 @@ Vue.component('tile', {
             
             if (this.hover) baseBackground = baseBackground.mix(Color('white'));
             if (this.highlight) {
-                if (this.highlight.preview) {
-                    baseBackground = baseBackground.lighten(.3);
+                // if (this.highlight.preview) {
+                //     baseBackground = baseBackground.lighten(.3);
+                // }
+                // if (this.highlight.left) {
+                //     baseBackground = baseBackground.mix(Color('#5f5'));
+                //     borderColor = borderColor.mix(Color("#5d5"));
+                // }
+                // if (this.highlight.right) {
+                //     baseBackground = baseBackground.mix(Color('#eae'));
+                //     borderColor = borderColor.mix(Color("#c9c"));
+                // }
+                if (this.highlight.weight) {
+                    let val = Math.round(this.highlight.weight * 0xff);
+                    let r = val;
+                    let weightColor = Color(`rgb(${r}, 0, 0)`);
+                    baseBackground = baseBackground.mix(weightColor);
+                    borderColor = borderColor.mix(weightColor);
                 }
-                if (this.highlight.left) {
-                    baseBackground = baseBackground.mix(Color('#5f5'));
-                    borderColor = borderColor.mix(Color("#5d5"));
-                }
-                if (this.highlight.right) {
-                    baseBackground = baseBackground.mix(Color('#eae'));
-                    borderColor = borderColor.mix(Color("#c9c"));
+                if (this.highlight.mask) {
+                    let weightColor = this.highlight.mask
+                                        ? Color(`rgb(0, 0, 255)`)
+                                        : Color(`rgb(255, 0, 0)`);
+                    baseBackground = baseBackground.mix(weightColor);
+                    borderColor = borderColor.mix(weightColor);
                 }
             }
             
@@ -203,6 +217,12 @@ Vue.component('tile', {
         'highlight.right': function() {
             this.updateStyle();
         },
+        'highlight.weight': function() {
+            this.updateStyle();
+        },
+        'highlight.mask': function() {
+            this.updateStyle();
+        },
     }
 });
 
@@ -232,6 +252,8 @@ new Vue({
                                         preview: previewMap && previewMap[[x,y]],
                                         left: leftMap && leftMap[[x,y]],
                                         right: rightMap && rightMap[[x,y]],
+                                        weight: weightMap && weightMap[[x,y]],
+                                        mask: maskMap && maskMap[[x,y]],
                                     }"
                                     @click="tileClicked"
                                     @mouseenter="mouseenter"
@@ -241,6 +263,13 @@ new Vue({
                                 <div style="display:table;width:100%;height:100%;">
                                     <div style="display:table-cell;vertical-align:middle;text-align:center;">
                                         {{board.get(x,y).properties.fade}}
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-if="shortDistances[[x,y]]" class="shortDistance">
+                                <div style="display:table;width:100%;height:100%;">
+                                    <div style="display:table-cell;vertical-align:middle;text-align:center;">
+                                        {{shortDistances[[x,y]]-1}}
                                     </div>
                                 </div>
                             </div>
@@ -291,6 +320,7 @@ new Vue({
                             <div>placer: {{hoverTile.properties.placer}}</div>
                             <div>x: {{hoverTile.properties.x}}</div>
                             <div>y: {{hoverTile.properties.y}}</div>
+                            <div>weight: {{weightMap ? weightMap[[hoverTile.properties.x, hoverTile.properties.y]] : '?'}}</div>
                         </div>
                     </td>
                 </tr>
@@ -300,7 +330,7 @@ new Vue({
     
     data () {
         return {
-            round: null,
+            turn: null,
             board: null,
             left: null,
             right: null,
@@ -315,6 +345,9 @@ new Vue({
             previewMap: {},
             leftMap: {},
             rightMap: {},
+            weightMap: {},
+            maskMap: {},
+            shortDistances: {},
         };
     },
     
@@ -338,7 +371,7 @@ new Vue({
     
     methods: {
         init: function() {
-            this.round = 0;
+            this.turn = 0;
             this.left = playerUtil.create(4, 5);
             this.right = playerUtil.create(16, 5);
             this.board = boardUtil.create(21, 11, this.left, this.right);
@@ -408,6 +441,10 @@ new Vue({
                     }
                 }
             }
+            
+            // this.weightMap = bot.get_weights(this.makeBotBoard());
+            // this.maskMap = bot.draw_winning_paths(this.makeBotBoard());
+            this.shortDistances = bot.compute_distances(this.makeBotBoard());
         },
         
         canPlaceTile: function(tilename) {
@@ -440,27 +477,8 @@ new Vue({
                     owners,
                     placer: 1,
                 });
-                let botBoard = {
-                    data: {},
-                    round: this.round,
-                    width: this.board.width,
-                    height: this.board.height,
-                    left_ownership: this.leftMap,
-                    right_ownership: this.rightMap,
-                    stock: this.right.stock,
-                };
-                for (let x = 0; x < this.board.width; x++) {
-                    for (let y = 0; y < this.board.height; y++) {
-                        let tile = this.board.get(x, y);
-                        if (tile.type == 'mine' && tile.properties.placer != 2) {
-                            botBoard.data[[x,y]] = tiles.blank({x, y});
-                        }
-                        else {
-                            botBoard.data[[x,y]] = tile;
-                        }
-                    }
-                }
-                let botTile = bot.make_move(botBoard);
+                
+                let botTile = bot.make_move(this.makeBotBoard());
                 if (!botTile) {
                     // bot timed out or didn't make move for some reason...
                     console.info("Bot did not make a move");
@@ -493,12 +511,37 @@ new Vue({
                 }
                 
                 this.selected = null;
-                this.left.stock[opt.type]--;
+                // this.left.stock[opt.type]--;
                 this.previewMap = {};
                 this.updateBoard();
                 this.previewTile = null;
-                this.round++;
+                this.turn++;
             }
+        },
+        makeBotBoard: function() {
+            let botBoard = {
+                data: {},
+                turn: this.turn,
+                width: this.board.width,
+                height: this.board.height,
+                left_base: this.left.base,
+                right_base: this.right.base,
+                left_ownership: this.leftMap,
+                right_ownership: this.rightMap,
+                stock: this.right.stock,
+            };
+            for (let x = 0; x < this.board.width; x++) {
+                for (let y = 0; y < this.board.height; y++) {
+                    let tile = this.board.get(x, y);
+                    if (tile.type == 'mine' && tile.properties.placer != 2) {
+                        botBoard.data[[x,y]] = tiles.blank({x, y});
+                    }
+                    else {
+                        botBoard.data[[x,y]] = tile;
+                    }
+                }
+            }
+            return botBoard;
         },
         stockMouseenter: function(opt) {
             if (this.canPlaceTile(opt.type)) {

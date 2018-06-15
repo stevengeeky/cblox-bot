@@ -142,6 +142,20 @@ container {
     pointer-events:none;
 }
 
+.shortDistance {
+    position:absolute;
+    z-index:4;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    font-size:30px;
+    font-weight:bold;
+    color:#444;
+    box-sizing:border-box;
+    pointer-events:none;
+}
+
 @keyframes mineLight {
     0% {
         fill: rgb(13, 179, 13);
@@ -170,3 +184,4 @@ container {
     padding-left:10px;
     width:30%;
 }
+
