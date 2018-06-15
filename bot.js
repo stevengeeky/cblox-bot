@@ -103,19 +103,229 @@ function get_weights(board) {
  * in the given position
  */
 function evaluate_position(board) {
-    let botDistance = compute_distances(board,
-                        {   x: board.left_base.properties.x,
-                            y: board.left_base.properties.y });
-    let playerDistance = compute_distances(board,
-                        {   x: board.right_base.properties.x,
-                            y: board.right_base.properties.y });
+    // let botDistance = compute_distances(board,
+    //                     {   x: board.left_base.properties.x,
+    //                         y: board.left_base.properties.y });
+    // let playerDistance = compute_distances(board,
+    //                     {   x: board.right_base.properties.x,
+    //                         y: board.right_base.properties.y });
+}
+
+bot.get_candidates = get_candidates;
+function get_candidates(board) {
+    let visited = {};
+    let samples = {};
+    for (let tiletype in tiles) {
+        samples[tiletype] = tiles[tiletype]({});
+    }
+    
+    for (let x = 0; x < board.width; x++) {
+        for (let y = 0; y < board.height; y++) {
+            visited[[x,y]] = {};
+        }
+    }
+    for (let x = 0; x < board.width; x++) {
+        for (let y = 0; y < board.height; y++) {
+            if (board.data[[x,y]].type != 'blank' && board.data[[x,y]].type != 'mine') {
+                if (samples.plus.canPlaceOn(board.data[[x + 1, y]])) visited[[x + 1, y]].plus = (visited[[x + 1, y]].plus || 0) + 1;
+                if (samples.plus.canPlaceOn(board.data[[x - 1, y]])) visited[[x - 1, y]].plus = (visited[[x - 1, y]].plus || 0) + 1;
+                if (samples.plus.canPlaceOn(board.data[[x, y + 1]])) visited[[x, y + 1]].plus = (visited[[x, y + 1]].plus || 0) + 1;
+                if (samples.plus.canPlaceOn(board.data[[x, y - 1]])) visited[[x, y - 1]].plus = (visited[[x, y - 1]].plus || 0) + 1;
+                
+                if (samples.plus.canPlaceOn(board.data[[x + 2, y]])) visited[[x + 2, y]].plus = (visited[[x + 2, y]].plus || 0) + 1;
+                if (samples.plus.canPlaceOn(board.data[[x - 2, y]])) visited[[x - 2, y]].plus = (visited[[x - 2, y]].plus || 0) + 1;
+                if (samples.plus.canPlaceOn(board.data[[x, y + 2]])) visited[[x, y + 2]].plus = (visited[[x, y + 2]].plus || 0) + 1;
+                if (samples.plus.canPlaceOn(board.data[[x, y - 2]])) visited[[x, y - 2]].plus = (visited[[x, y - 2]].plus || 0) + 1;
+                
+                if (samples.x.canPlaceOn(board.data[[x + 1, y + 1]])) visited[[x + 1, y + 1]].x = (visited[[x + 1, y + 1]].x || 0) + 1;
+                if (samples.x.canPlaceOn(board.data[[x - 1, y - 1]])) visited[[x - 1, y - 1]].x = (visited[[x - 1, y - 1]].x || 0) + 1;
+                if (samples.x.canPlaceOn(board.data[[x - 1, y + 1]])) visited[[x - 1, y + 1]].x = (visited[[x - 1, y + 1]].x || 0) + 1;
+                if (samples.x.canPlaceOn(board.data[[x + 1, y - 1]])) visited[[x + 1, y - 1]].x = (visited[[x + 1, y - 1]].x || 0) + 1;
+                
+                if (samples.x.canPlaceOn(board.data[[x + 2, y + 2]])) visited[[x + 2, y + 2]].x = (visited[[x + 2, y + 2]].x || 0) + 1;
+                if (samples.x.canPlaceOn(board.data[[x - 2, y - 2]])) visited[[x - 2, y - 2]].x = (visited[[x - 2, y - 2]].x || 0) + 1;
+                if (samples.x.canPlaceOn(board.data[[x - 2, y + 2]])) visited[[x - 2, y + 2]].x = (visited[[x - 2, y + 2]].x || 0) + 1;
+                if (samples.x.canPlaceOn(board.data[[x + 2, y - 2]])) visited[[x + 2, y - 2]].x = (visited[[x + 2, y - 2]].x || 0) + 1;
+                
+                if (board.stock.star) {
+                    if (samples.star.canPlaceOn(board.data[[x + 1, y]])) visited[[x + 1, y]].star = (visited[[x + 1, y]].star || 0) + 1;
+                    if (samples.star.canPlaceOn(board.data[[x - 1, y]])) visited[[x - 1, y]].star = (visited[[x - 1, y]].star || 0) + 1;
+                    if (samples.star.canPlaceOn(board.data[[x, y + 1]])) visited[[x, y + 1]].star = (visited[[x, y + 1]].star || 0) + 1;
+                    if (samples.star.canPlaceOn(board.data[[x, y - 1]])) visited[[x, y - 1]].star = (visited[[x, y - 1]].star || 0) + 1;
+                    
+                    if (samples.star.canPlaceOn(board.data[[x + 1, y + 1]])) visited[[x + 1, y + 1]].star = (visited[[x + 1, y + 1]].star || 0) + 1;
+                    if (samples.star.canPlaceOn(board.data[[x - 1, y - 1]])) visited[[x - 1, y - 1]].star = (visited[[x - 1, y - 1]].star || 0) + 1;
+                    if (samples.star.canPlaceOn(board.data[[x - 1, y + 1]])) visited[[x - 1, y + 1]].star = (visited[[x - 1, y + 1]].star || 0) + 1;
+                    if (samples.star.canPlaceOn(board.data[[x + 1, y - 1]])) visited[[x + 1, y - 1]].star = (visited[[x + 1, y - 1]].star || 0) + 1;
+                    
+                    if (samples.star.canPlaceOn(board.data[[x + 2, y]])) visited[[x + 2, y]].star = (visited[[x + 2, y]].star || 0) + 1;
+                    if (samples.star.canPlaceOn(board.data[[x - 2, y]])) visited[[x - 2, y]].star = (visited[[x - 2, y]].star || 0) + 1;
+                    if (samples.star.canPlaceOn(board.data[[x, y + 2]])) visited[[x, y + 2]].star = (visited[[x, y + 2]].star || 0) + 1;
+                    if (samples.star.canPlaceOn(board.data[[x, y - 2]])) visited[[x, y - 2]].star = (visited[[x, y - 2]].star || 0) + 1;
+                    
+                    if (samples.star.canPlaceOn(board.data[[x + 2, y + 2]])) visited[[x + 2, y + 2]].star = (visited[[x + 2, y + 2]].star || 0) + 1;
+                    if (samples.star.canPlaceOn(board.data[[x - 2, y - 2]])) visited[[x - 2, y - 2]].star = (visited[[x - 2, y - 2]].star || 0) + 1;
+                    if (samples.star.canPlaceOn(board.data[[x - 2, y + 2]])) visited[[x - 2, y + 2]].star = (visited[[x - 2, y + 2]].star || 0) + 1;
+                    if (samples.star.canPlaceOn(board.data[[x + 2, y - 2]])) visited[[x + 2, y - 2]].star = (visited[[x + 2, y - 2]].star || 0) + 1;
+                }
+                if (board.stock.circlePlus) {
+                    if (samples.circlePlus.canPlaceOn(board.data[[x + 2, y]])) visited[[x + 2, y]].circlePlus = (visited[[x + 2, y]].circlePlus || 0) + 1;
+                    if (samples.circlePlus.canPlaceOn(board.data[[x - 2, y]])) visited[[x - 2, y]].circlePlus = (visited[[x - 2, y]].circlePlus || 0) + 1;
+                    if (samples.circlePlus.canPlaceOn(board.data[[x, y + 2]])) visited[[x, y + 2]].circlePlus = (visited[[x, y + 2]].circlePlus || 0) + 1;
+                    if (samples.circlePlus.canPlaceOn(board.data[[x, y - 2]])) visited[[x, y - 2]].circlePlus = (visited[[x, y - 2]].circlePlus || 0) + 1;
+                }
+                if (board.stock.circleX) {
+                    if (samples.circleX.canPlaceOn(board.data[[x + 2, y + 2]])) visited[[x + 2, y + 2]].circleX = (visited[[x + 2, y + 2]].circleX || 0) + 1;
+                    if (samples.circleX.canPlaceOn(board.data[[x - 2, y - 2]])) visited[[x - 2, y - 2]].circleX = (visited[[x - 2, y - 2]].circleX || 0) + 1;
+                    if (samples.circleX.canPlaceOn(board.data[[x - 2, y + 2]])) visited[[x - 2, y + 2]].circleX = (visited[[x - 2, y + 2]].circleX || 0) + 1;
+                    if (samples.circleX.canPlaceOn(board.data[[x + 2, y - 2]])) visited[[x + 2, y - 2]].circleX = (visited[[x + 2, y - 2]].circleX || 0) + 1;
+                }
+                
+                if (board.stock.downLeft) {
+                    if (samples.downLeft.canPlaceOn(board.data[[x + 1, y - 1]])) visited[[x + 1, y - 1]].downLeft = (visited[[x + 1, y - 1]].downLeft || 0) + 1;
+                    if (samples.downLeft.canPlaceOn(board.data[[x + 2, y - 2]])) visited[[x + 2, y - 2]].downLeft = (visited[[x + 2, y - 2]].downLeft || 0) + 1;
+                }
+                if (board.stock.downRight) {
+                    if (samples.downRight.canPlaceOn(board.data[[x - 1, y - 1]])) visited[[x - 1, y - 1]].downRight = (visited[[x - 1, y - 1]].downRight || 0) + 1;
+                    if (samples.downRight.canPlaceOn(board.data[[x - 2, y - 2]])) visited[[x - 2, y - 2]].downRight = (visited[[x - 2, y - 2]].downRight || 0) + 1;
+                }
+                if (board.stock.upRight) {
+                    if (samples.upRight.canPlaceOn(board.data[[x - 1, y + 1]])) visited[[x - 1, y + 1]].upRight = (visited[[x - 1, y + 1]].upRight || 0) + 1;
+                    if (samples.upRight.canPlaceOn(board.data[[x - 2, y + 2]])) visited[[x - 2, y + 2]].upRight = (visited[[x - 2, y + 2]].upRight || 0) + 1;
+                }
+                if (board.stock.upLeft) {
+                    if (samples.upLeft.canPlaceOn(board.data[[x + 1, y + 1]])) visited[[x + 1, y + 1]].upLeft = (visited[[x + 1, y + 1]].upLeft || 0) + 1;
+                    if (samples.upLeft.canPlaceOn(board.data[[x + 2, y + 2]])) visited[[x + 2, y + 2]].upLeft = (visited[[x + 2, y + 2]].upLeft || 0) + 1;
+                }
+                
+                if (board.stock.down) {
+                    if (samples.down.canPlaceOn(board.data[[x, y - 1]])) visited[[x, y - 1]].down = (visited[[x, y - 1]].down || 0) + 1;
+                    if (samples.down.canPlaceOn(board.data[[x, y - 2]])) visited[[x, y - 2]].down = (visited[[x, y - 2]].down || 0) + 1;
+                }
+                if (board.stock.up) {
+                    if (samples.up.canPlaceOn(board.data[[x, y + 1]])) visited[[x, y + 1]].up = (visited[[x, y + 1]].up || 0) + 1;
+                    if (samples.up.canPlaceOn(board.data[[x, y + 2]])) visited[[x, y + 2]].up = (visited[[x, y + 2]].up || 0) + 1;
+                }
+                if (board.stock.left) {
+                    if (samples.left.canPlaceOn(board.data[[x + 1, y]])) visited[[x + 1, y]].left = (visited[[x + 1, y]].left || 0) + 1;
+                    if (samples.left.canPlaceOn(board.data[[x + 2, y]])) visited[[x + 2, y]].left = (visited[[x + 2, y]].left || 0) + 1;
+                }
+                if (board.stock.right) {
+                    if (samples.right.canPlaceOn(board.data[[x - 1, y]])) visited[[x - 1, y]].right = (visited[[x - 1, y]].right || 0) + 1;
+                    if (samples.right.canPlaceOn(board.data[[x - 2, y]])) visited[[x - 2, y]].right = (visited[[x - 2, y]].right || 0) + 1;
+                }
+                
+                if (board.stock.circle) {
+                    if (samples.circle.canPlaceOn(board.data[[x, y]])) visited[[x, y]].circle = (visited[[x, y]].circle || 0) + 1;
+                }
+                if (board.stock.reclaim) {
+                    if (samples.reclaim.canPlaceOn(board.data[[x, y]])) visited[[x, y]].reclaim = (visited[[x, y]].reclaim || 0) + 1;
+                }
+                
+                if (board.stock.mine) {
+                    for (let maybe_block of board.data[[x, y]].properties.range) {
+                        visited[maybe_block].mine = (visited[maybe_block].mine || 0) + 1;
+                    }
+                    
+                    if (board.data[[x, y]].type == 'x' || board.data[[x, y]].type == 'star') {
+                        if (samples.mine.canPlaceOn(board.data[[x + 2, y + 2]])) visited[[x + 2, y + 2]].mine = (visited[[x + 2, y + 2]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x - 2, y - 2]])) visited[[x - 2, y - 2]].mine = (visited[[x - 2, y - 2]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x - 2, y + 2]])) visited[[x - 2, y + 2]].mine = (visited[[x - 2, y + 2]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x + 2, y - 2]])) visited[[x + 2, y - 2]].mine = (visited[[x + 2, y - 2]].mine || 0) + 1;
+                    }
+                    
+                    if (board.data[[x, y]].type == 'plus' || board.data[[x, y]].type == 'star') {
+                        if (samples.mine.canPlaceOn(board.data[[x + 2, y]])) visited[[x + 2, y]].mine = (visited[[x + 2, y]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x - 2, y]])) visited[[x - 2, y]].mine = (visited[[x - 2, y]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x, y + 2]])) visited[[x, y + 2]].mine = (visited[[x, y + 2]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x, y - 2]])) visited[[x, y - 2]].mine = (visited[[x, y - 2]].mine || 0) + 1;
+                    }
+                    
+                    if (board.data[[x, y]].type == 'right') {
+                        if (samples.mine.canPlaceOn(board.data[[x + 2, y]])) visited[[x + 2, y]].mine = (visited[[x + 2, y]].mine || 0) + 1;
+                    }
+                    
+                    if (board.data[[x, y]].type == 'left') {
+                        if (samples.mine.canPlaceOn(board.data[[x - 2, y]])) visited[[x - 2, y]].mine = (visited[[x - 2, y]].mine || 0) + 1;
+                    }
+                    
+                    if (board.data[[x, y]].type == 'up') {
+                        if (samples.mine.canPlaceOn(board.data[[x, y - 2]])) visited[[x, y - 2]].mine = (visited[[x, y - 2]].mine || 0) + 1;
+                    }
+                    
+                    if (board.data[[x, y]].type == 'down') {
+                        if (samples.mine.canPlaceOn(board.data[[x, y + 2]])) visited[[x, y + 2]].mine = (visited[[x, y + 2]].mine || 0) + 1;
+                    }
+                    
+                    if (board.data[[x, y]].type == 'upRight') {
+                        if (samples.mine.canPlaceOn(board.data[[x + 2, y - 2]])) visited[[x + 2, y - 2]].mine = (visited[[x + 2, y - 2]].mine || 0) + 1;
+                    }
+                    if (board.data[[x, y]].type == 'upLeft') {
+                        if (samples.mine.canPlaceOn(board.data[[x - 2, y - 2]])) visited[[x - 2, y - 2]].mine = (visited[[x - 2, y - 2]].mine || 0) + 1;
+                    }
+                    if (board.data[[x, y]].type == 'downLeft') {
+                        if (samples.mine.canPlaceOn(board.data[[x - 2, y + 2]])) visited[[x - 2, y + 2]].mine = (visited[[x - 2, y + 2]].mine || 0) + 1;
+                    }
+                    if (board.data[[x, y]].type == 'downRight') {
+                        if (samples.mine.canPlaceOn(board.data[[x + 2, y + 2]])) visited[[x + 2, y + 2]].mine = (visited[[x + 2, y + 2]].mine || 0) + 1;
+                    }
+                }
+            }
+        }
+    }
+    
+    return visited;
 }
 
 bot.compute_distances = compute_distances;
+function compute_distances(board, start) {
+    let visited = {};
+    if (start) start.depth = 1;
+    let toExplore = [start || {
+        depth: 1,
+        x: board.right_base.properties.x,
+        y: board.right_base.properties.y
+    }];
+    let depth, tile;
+    while (toExplore.length > 0) {
+        let exploreNext = [];
+        for (let xy of toExplore) {
+            if (xy.x < 0 || xy.y < 0 || xy.x >= board.width || xy.y >= board.height) continue;
+            
+            depth = xy.depth;
+            if (visited[[xy.x, xy.y]] && visited[[xy.x, xy.y]] <= depth) continue;
+            
+            visited[[xy.x, xy.y]] = depth;
+            tile = board.data[[xy.x, xy.y]];
+            
+            if (tile.type == 'blank') {
+                exploreNext.push({ depth: depth + 1, x: xy.x - 1, y: xy.y });
+                exploreNext.push({ depth: depth + 1, x: xy.x + 1, y: xy.y });
+                exploreNext.push({ depth: depth + 1, x: xy.x, y: xy.y - 1 });
+                exploreNext.push({ depth: depth + 1, x: xy.x, y: xy.y + 1 });
+                exploreNext.push({ depth: depth + 1, x: xy.x + 1, y: xy.y + 1 });
+                exploreNext.push({ depth: depth + 1, x: xy.x + 1, y: xy.y - 1 });
+                exploreNext.push({ depth: depth + 1, x: xy.x - 1, y: xy.y + 1 });
+                exploreNext.push({ depth: depth + 1, x: xy.x - 1, y: xy.y - 1 });
+            }
+            else {
+                for (let potential of tile.properties.range) {
+                    exploreNext.push({ depth, x: potential[0], y: potential[1] });
+                }
+            }
+        }
+        
+        toExplore = exploreNext;
+    }
+    
+    return visited;
+}
+
+bot.compute_distance_winning_path = compute_distance_winning_path;
 /**
  * Compute closest distances to the nearest winning path 
  */
-function compute_distances(board, destination) {
+function compute_distance_winning_path(board, destination) {
     let visited = {};
     let winning_paths = draw_winning_paths(board, destination);
     let visitX, visitY;

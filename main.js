@@ -176,6 +176,12 @@ Vue.component('tile', {
                     baseBackground = baseBackground.mix(weightColor);
                     borderColor = borderColor.mix(weightColor);
                 }
+                if (typeof this.highlight.player == 'number') {
+                    let red = Math.round(this.highlight.player * 0xff);
+                    let weightColor = Color(`rgb(${red}, 0, 0)`);
+                    baseBackground = baseBackground.mix(weightColor);
+                    borderColor = borderColor.mix(weightColor);
+                }
             }
             
             if (/blank/.test(type)) {
@@ -232,6 +238,9 @@ Vue.component('tile', {
         'highlight.short': function() {
             this.updateStyle();
         },
+        'highlight.player': function() {
+            this.updateStyle();
+        },
     }
 });
 
@@ -264,6 +273,7 @@ new Vue({
                                         weight: weightMap && weightMap[[x,y]],
                                         mask: maskMap && maskMap[[x,y]],
                                         short: shortDistances && shortDistances[[x,y]],
+                                        player: playerDistances && playerDistances[[x,y]],
                                     }"
                                     @click="tileClicked"
                                     @mouseenter="mouseenter"
@@ -351,6 +361,7 @@ new Vue({
             weightMap: {},
             maskMap: {},
             shortDistances: {},
+            playerDistances: {},
         };
     },
     
@@ -447,7 +458,9 @@ new Vue({
             
             // this.weightMap = bot.get_weights(this.makeBotBoard());
             // this.maskMap = bot.draw_winning_paths(this.makeBotBoard());
+            // let candidates = bot.get_candidates(this.makeBotBoard());
             let shortDistances = bot.compute_distances(this.makeBotBoard());
+            let playerDistances = bot.compute_distances(this.makeBotBoard(), this.left.base.properties);
             let maxDistance = 1;
             for (let x = 0; x < this.board.width; x++) {
                 for (let y = 0; y < this.board.height; y++) {
@@ -456,10 +469,21 @@ new Vue({
             }
             for (let x = 0; x < this.board.width; x++) {
                 for (let y = 0; y < this.board.height; y++) {
-                    shortDistances[[x,y]] /= maxDistance;
+                    shortDistances[[x,y]] = 1 - (shortDistances[[x,y]] / maxDistance);
+                }
+            }
+            for (let x = 0; x < this.board.width; x++) {
+                for (let y = 0; y < this.board.height; y++) {
+                    maxDistance = Math.max(maxDistance, playerDistances[[x,y]]);
+                }
+            }
+            for (let x = 0; x < this.board.width; x++) {
+                for (let y = 0; y < this.board.height; y++) {
+                    playerDistances[[x,y]] = 1 - (playerDistances[[x,y]] / maxDistance);
                 }
             }
             this.shortDistances = shortDistances;
+            this.playerDistances = playerDistances;
         },
         
         canPlaceTile: function(tilename) {
