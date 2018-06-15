@@ -119,18 +119,25 @@ Vue.component('tile', {
             }
         },
         drawSvg: function(tilename) {
-            if (tilename == 'mine') tilename = 'mine_board';
-            this.$refs.element.innerHTML =
-                    drawUtil.computeSvgHeader(this.width, this.height) +
-                    drawUtil[tilename] +
-                    drawUtil.svgFooter;
+            if (tilename == 'mine' && this.opt.placer != 1) {
+                this.$refs.element.innerHTML = "";
+            }
+            else {
+                if (tilename == 'mine') tilename = 'mine_board';
+                this.$refs.element.innerHTML =
+                        drawUtil.computeSvgHeader(this.width, this.height) +
+                        drawUtil[tilename] +
+                        drawUtil.svgFooter;
+            }
         },
         
         updateStyle: function() {
             let baseBackground = Color('rgb(200, 200, 200)');
             let borderColor = Color("#bababa");
+            let type = this.opt.type;
             
-            if (this.opt.type == 'collision') {
+            if (type == 'mine' && this.opt.placer != 1) type = 'blank';
+            if (type == 'collision') {
                 this.border = '1px solid black';
                 this.background = 'black';
                 return;
@@ -151,7 +158,7 @@ Vue.component('tile', {
                 }
             }
             
-            if (/blank/.test(this.opt.type)) {
+            if (/blank/.test(type)) {
                 if (!this.preview || this.preview && /blank/.test(this.preview.type)) {
                     this.border = `1px solid ${borderColor.rgb().string()}`;
                 }
@@ -431,7 +438,53 @@ new Vue({
                     owners,
                     placer: 1,
                 });
-                this.board.set(this.selected.properties.x, this.selected.properties.y, tile);
+                let botBoard = {
+                    data: {},
+                    width: this.board.width,
+                    height: this.board.height,
+                    left_ownership: this.leftMap,
+                    right_ownership: this.rightMap,
+                    stock: this.right.stock,
+                };
+                for (let x = 0; x < this.board.width; x++) {
+                    for (let y = 0; y < this.board.height; y++) {
+                        let tile = this.board.get(x, y);
+                        if (tile.type == 'mine' && tile.properties.placer != 2) continue;
+                        botBoard.data[[x,y]] = tile;
+                    }
+                }
+                let botTile = bot.make_move(botBoard);
+                if (!botTile) {
+                    // bot timed out or didn't make move for some reason...
+                    console.info("Bot did not make a move");
+                }
+                else if (!this.right.stock[botTile.type] || this.right.stock[botTile.type] < 0) {
+                    // invalid move
+                    console.error("Could not place bot tile (" + botTile.type + ") because no more of this tile type existed in stock");
+                    botTile = null;
+                }
+                
+                if (botTile && botTile.properties.x == this.selected.properties.x
+                    && botTile.properties.y == this.selected.properties.y) {
+                        this.board.set(
+                            this.selected.properties.x,
+                            this.selected.properties.y,
+                            tiles.collision({
+                                x: this.selected.properties.x,
+                                y: this.selected.properties.y,
+                            }));
+                    }
+                else {
+                    this.board.set(this.selected.properties.x, this.selected.properties.y, tile);
+                    if (botTile) {
+                        botTile.properties.placer = 2;
+                        botTile.properties.owners = [];
+                        
+                        this.right.stock[botTile.type]--;
+                        this.board.set(botTile.properties.x, botTile.properties.y, botTile);
+                    }
+                }
+                
                 this.selected = null;
                 this.left.stock[opt.type]--;
                 this.previewMap = {};
