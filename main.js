@@ -258,7 +258,16 @@ new Vue({
                                     :opt="previewTile.whenPlacedOn(board.get(x,y))"
                                     :width="'50px'"
                                     :height="'50px'"
-                                    :enabled="true"></tile>
+                                    :enabled="true"
+                                    :highlight="{
+                                        preview: previewMap && previewMap[[x,y]],
+                                        left: leftMap && leftMap[[x,y]],
+                                        right: rightMap && rightMap[[x,y]],
+                                        weight: weightMap && weightMap[[x,y]],
+                                        mask: maskMap && maskMap[[x,y]],
+                                        short: shortDistances && shortDistances[[x,y]],
+                                        player: playerDistances && playerDistances[[x,y]],
+                                    }"></tile>
                                 <tile
                                     v-else-if="board.get(x, y)"
                                     :opt="board.get(x, y)"
