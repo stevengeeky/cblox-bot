@@ -10,8 +10,15 @@
  * 
  * find best way to calculate pressure
  */
+
+let samples = {};
+for (let tiletype in tiles) {
+    samples[tiletype] = tiles[tiletype]({});
+}
+
 let bot = {};
 bot.make_move = function(board) {
+    let start = Date.now();
     return null;
     let blanks = get_blank_tiles(board);
     if (blanks.length == 0) return null;
@@ -33,6 +40,59 @@ bot.make_move = function(board) {
         y: blanks[whichBlank].properties.y,
     });
 };
+
+function maximize_bot(board, depth) {
+    // go for the largest value
+    if (depth <= 0) {
+        return { evaluation: evaluate_position(board) };
+    }
+    let maxEval = null, newEval, bestMove;
+    let moves = get_candidates(board);
+    let prev_tile;
+    console.log("Reached depth", depth);
+    
+    for (let move of moves) {
+        prev_tile = tiles[board.data[[move.x,move.y]].type](board.data[[move.x,move.y]].properties);
+        board[[move.x,move.y]] = samples[move.type].whenPlacedOn(prev_tile);
+        newEval = minimize_player(board, depth - 1);
+        if (!maxEval || maxEval < newEval.evaluation) {
+            maxEval = newEval.evaluation;
+            bestMove = move;
+        }
+        board[[move.x,move.y]] = prev_tile;
+    }
+    
+    return {
+        evaluation: newEval.evaluation,
+        best_move: bestMove
+    };
+}
+
+function minimize_player(board, depth) {
+    // go for the largest value
+    if (depth <= 0) {
+        return { evaluation: evaluate_position(board) };
+    }
+    let minEval = null, newEval, bestMove;
+    let moves = get_candidates(board);
+    let prev_tile;
+    
+    for (let move of moves) {
+        prev_tile = tiles[board.data[[move.x,move.y]].type](board.data[[move.x,move.y]].properties);
+        board[[move.x,move.y]] = samples[move.type].whenPlacedOn(prev_tile);
+        newEval = maximize_bot(board, depth - 1);
+        if (!minEval || minEval > newEval.evaluation) {
+            minEval = newEval.evaluation;
+            bestMove = move;
+        }
+        board[[move.x,move.y]] = prev_tile;
+    }
+    
+    return {
+        evaluation: newEval.evaluation,
+        best_move: bestMove
+    };
+}
 
 bot.get_weights = get_weights;
 
@@ -103,55 +163,32 @@ function get_weights(board) {
  * in the given position
  */
 function evaluate_position(board) {
-    let bot_side = compute_distances(board,
+    let bot_side = sum_distances(board,
                         {   x: board.left_base.properties.x,
                             y: board.left_base.properties.y });
-    let player_side = compute_distances(board,
+    let player_side = sum_distances(board,
                         {   x: board.right_base.properties.x,
                             y: board.right_base.properties.y });
     
-    
+    return bot_side - player_side;
+}
+
+bot.sum_distances = sum_distances;
+function sum_distances(board, start) {
+    let result = 0;
+    let distances = compute_distances(board, start);
+    for (let x = 0; x < board.width; x++) {
+        for (let y = 0; y < board.height; y++) {
+            if (distances[[x,y]]) result += distances[[x,y]];
+        }
+    }
+    return result;
 }
 
 bot.get_candidates = get_candidates;
-function get_candidates(board) {
+function get_candidates(board, ignore_stock) {
     let visited = {};
-    for (let x = 0; x < board.width; x++) {
-        for (let y = 0; y < board.height; y++) {
-            if (board.data[[x,y]].type != 'blank' && board.data[[x,y]].type != 'mine') {
-                visited[[x + 1, y]] = 1;
-                visited[[x - 1, y]] = 1;
-                visited[[x, y + 1]] = 1;
-                visited[[x, y - 1]] = 1;
-                
-                visited[[x + 2, y]] = 1;
-                visited[[x - 2, y]] = 1;
-                visited[[x, y + 2]] = 1;
-                visited[[x, y - 2]] = 1;
-                
-                visited[[x + 1, y + 1]] = 1;
-                visited[[x - 1, y - 1]] = 1;
-                visited[[x - 1, y + 1]] = 1;
-                visited[[x + 1, y - 1]] = 1;
-                
-                visited[[x + 2, y + 2]] = 1;
-                visited[[x - 2, y - 2]] = 1;
-                visited[[x - 2, y + 2]] = 1;
-                visited[[x + 2, y - 2]] = 1;
-            }
-        }
-    }
-    
-    return visited;
-}
-
-bot.get_candidates = get_specific_candidates;
-function get_specific_candidates(board) {
-    let visited = {};
-    let samples = {};
-    for (let tiletype in tiles) {
-        samples[tiletype] = tiles[tiletype]({});
-    }
+    let result = [];
     
     for (let x = 0; x < board.width; x++) {
         for (let y = 0; y < board.height; y++) {
@@ -161,154 +198,598 @@ function get_specific_candidates(board) {
     for (let x = 0; x < board.width; x++) {
         for (let y = 0; y < board.height; y++) {
             if (board.data[[x,y]].type != 'blank' && board.data[[x,y]].type != 'mine') {
-                if (samples.plus.canPlaceOn(board.data[[x + 1, y]])) visited[[x + 1, y]].plus = (visited[[x + 1, y]].plus || 0) + 1;
-                if (samples.plus.canPlaceOn(board.data[[x - 1, y]])) visited[[x - 1, y]].plus = (visited[[x - 1, y]].plus || 0) + 1;
-                if (samples.plus.canPlaceOn(board.data[[x, y + 1]])) visited[[x, y + 1]].plus = (visited[[x, y + 1]].plus || 0) + 1;
-                if (samples.plus.canPlaceOn(board.data[[x, y - 1]])) visited[[x, y - 1]].plus = (visited[[x, y - 1]].plus || 0) + 1;
+                if (samples.plus.canPlaceOn(board.data[[x + 1, y]])) {
+                        if (!visited[[x + 1, y]].plus) {
+                            visited[[x + 1, y]].plus = 0;
+                            result.push({ x: x + 1, y:  y, type: 'plus' });
+                        }
+                        else visited[[x + 1, y]].plus++;
+                }
+                if (samples.plus.canPlaceOn(board.data[[x - 1, y]])) {
+                        if (!visited[[x - 1, y]].plus) {
+                            visited[[x - 1, y]].plus = 0;
+                            result.push({ x: x - 1, y:  y, type: 'plus' });
+                        }
+                        else visited[[x - 1, y]].plus++;
+                }
+                if (samples.plus.canPlaceOn(board.data[[x, y + 1]])) {
+                        if (!visited[[x, y + 1]].plus) {
+                            visited[[x, y + 1]].plus = 0;
+                            result.push({ x: x, y:  y + 1, type: 'plus' });
+                        }
+                        else visited[[x, y + 1]].plus++;
+                }
+                if (samples.plus.canPlaceOn(board.data[[x, y - 1]])) {
+                        if (!visited[[x, y - 1]].plus) {
+                            visited[[x, y - 1]].plus = 0;
+                            result.push({ x: x, y:  y - 1, type: 'plus' });
+                        }
+                        else visited[[x, y - 1]].plus++;
+                }
                 
-                if (samples.plus.canPlaceOn(board.data[[x + 2, y]])) visited[[x + 2, y]].plus = (visited[[x + 2, y]].plus || 0) + 1;
-                if (samples.plus.canPlaceOn(board.data[[x - 2, y]])) visited[[x - 2, y]].plus = (visited[[x - 2, y]].plus || 0) + 1;
-                if (samples.plus.canPlaceOn(board.data[[x, y + 2]])) visited[[x, y + 2]].plus = (visited[[x, y + 2]].plus || 0) + 1;
-                if (samples.plus.canPlaceOn(board.data[[x, y - 2]])) visited[[x, y - 2]].plus = (visited[[x, y - 2]].plus || 0) + 1;
+                if (samples.plus.canPlaceOn(board.data[[x + 2, y]])) {
+                        if (!visited[[x + 2, y]].plus) {
+                            visited[[x + 2, y]].plus = 0;
+                            result.push({ x: x + 2, y:  y, type: 'plus' });
+                        }
+                        else visited[[x + 2, y]].plus++;
+                }
+                if (samples.plus.canPlaceOn(board.data[[x - 2, y]])) {
+                        if (!visited[[x - 2, y]].plus) {
+                            visited[[x - 2, y]].plus = 0;
+                            result.push({ x: x - 2, y:  y, type: 'plus' });
+                        }
+                        else visited[[x - 2, y]].plus++;
+                }
+                if (samples.plus.canPlaceOn(board.data[[x, y + 2]])) {
+                        if (!visited[[x, y + 2]].plus) {
+                            visited[[x, y + 2]].plus = 0;
+                            result.push({ x: x, y:  y + 2, type: 'plus' });
+                        }
+                        else visited[[x, y + 2]].plus++;
+                }
+                if (samples.plus.canPlaceOn(board.data[[x, y - 2]])) {
+                        if (!visited[[x, y - 2]].plus) {
+                            visited[[x, y - 2]].plus = 0;
+                            result.push({ x: x, y:  y - 2, type: 'plus' });
+                        }
+                        else visited[[x, y - 2]].plus++;
+                }
                 
-                if (samples.x.canPlaceOn(board.data[[x + 1, y + 1]])) visited[[x + 1, y + 1]].x = (visited[[x + 1, y + 1]].x || 0) + 1;
-                if (samples.x.canPlaceOn(board.data[[x - 1, y - 1]])) visited[[x - 1, y - 1]].x = (visited[[x - 1, y - 1]].x || 0) + 1;
-                if (samples.x.canPlaceOn(board.data[[x - 1, y + 1]])) visited[[x - 1, y + 1]].x = (visited[[x - 1, y + 1]].x || 0) + 1;
-                if (samples.x.canPlaceOn(board.data[[x + 1, y - 1]])) visited[[x + 1, y - 1]].x = (visited[[x + 1, y - 1]].x || 0) + 1;
+                if (samples.x.canPlaceOn(board.data[[x + 1, y + 1]])) {
+                        if (!visited[[x + 1, y + 1]].x) {
+                            visited[[x + 1, y + 1]].x = 0;
+                            result.push({ x: x + 1, y:  y + 1, type: 'x' });
+                        }
+                        else visited[[x + 1, y + 1]].x++;
+                }
+                if (samples.x.canPlaceOn(board.data[[x - 1, y - 1]])) {
+                        if (!visited[[x - 1, y - 1]].x) {
+                            visited[[x - 1, y - 1]].x = 0;
+                            result.push({ x: x - 1, y:  y - 1, type: 'x' });
+                        }
+                        else visited[[x - 1, y - 1]].x++;
+                }
+                if (samples.x.canPlaceOn(board.data[[x - 1, y + 1]])) {
+                        if (!visited[[x - 1, y + 1]].x) {
+                            visited[[x - 1, y + 1]].x = 0;
+                            result.push({ x: x - 1, y:  y + 1, type: 'x' });
+                        }
+                        else visited[[x - 1, y + 1]].x++;
+                }
+                if (samples.x.canPlaceOn(board.data[[x + 1, y - 1]])) {
+                        if (!visited[[x + 1, y - 1]].x) {
+                            visited[[x + 1, y - 1]].x = 0;
+                            result.push({ x: x + 1, y:  y - 1, type: 'x' });
+                        }
+                        else visited[[x + 1, y - 1]].x++;
+                }
                 
-                if (samples.x.canPlaceOn(board.data[[x + 2, y + 2]])) visited[[x + 2, y + 2]].x = (visited[[x + 2, y + 2]].x || 0) + 1;
-                if (samples.x.canPlaceOn(board.data[[x - 2, y - 2]])) visited[[x - 2, y - 2]].x = (visited[[x - 2, y - 2]].x || 0) + 1;
-                if (samples.x.canPlaceOn(board.data[[x - 2, y + 2]])) visited[[x - 2, y + 2]].x = (visited[[x - 2, y + 2]].x || 0) + 1;
-                if (samples.x.canPlaceOn(board.data[[x + 2, y - 2]])) visited[[x + 2, y - 2]].x = (visited[[x + 2, y - 2]].x || 0) + 1;
+                if (samples.x.canPlaceOn(board.data[[x + 2, y + 2]])) {
+                        if (!visited[[x + 2, y + 2]].x) {
+                            visited[[x + 2, y + 2]].x = 0;
+                            result.push({ x: x + 2, y:  y + 2, type: 'x' });
+                        }
+                        else visited[[x + 2, y + 2]].x++;
+                }
+                if (samples.x.canPlaceOn(board.data[[x - 2, y - 2]])) {
+                        if (!visited[[x - 2, y - 2]].x) {
+                            visited[[x - 2, y - 2]].x = 0;
+                            result.push({ x: x - 2, y:  y - 2, type: 'x' });
+                        }
+                        else visited[[x - 2, y - 2]].x++;
+                }
+                if (samples.x.canPlaceOn(board.data[[x - 2, y + 2]])) {
+                        if (!visited[[x - 2, y + 2]].x) {
+                            visited[[x - 2, y + 2]].x = 0;
+                            result.push({ x: x - 2, y:  y + 2, type: 'x' });
+                        }
+                        else visited[[x - 2, y + 2]].x++;
+                }
+                if (samples.x.canPlaceOn(board.data[[x + 2, y - 2]])) {
+                        if (!visited[[x + 2, y - 2]].x) {
+                            visited[[x + 2, y - 2]].x = 0;
+                            result.push({ x: x + 2, y:  y - 2, type: 'x' });
+                        }
+                        else visited[[x + 2, y - 2]].x++;
+                }
                 
-                if (board.stock.star) {
-                    if (samples.star.canPlaceOn(board.data[[x + 1, y]])) visited[[x + 1, y]].star = (visited[[x + 1, y]].star || 0) + 1;
-                    if (samples.star.canPlaceOn(board.data[[x - 1, y]])) visited[[x - 1, y]].star = (visited[[x - 1, y]].star || 0) + 1;
-                    if (samples.star.canPlaceOn(board.data[[x, y + 1]])) visited[[x, y + 1]].star = (visited[[x, y + 1]].star || 0) + 1;
-                    if (samples.star.canPlaceOn(board.data[[x, y - 1]])) visited[[x, y - 1]].star = (visited[[x, y - 1]].star || 0) + 1;
+                if (board.stock.star || ignore_stock) {
+                    if (samples.star.canPlaceOn(board.data[[x + 1, y]])) {
+                            if (!visited[[x + 1, y]].star) {
+                                visited[[x + 1, y]].star = 0;
+                                result.push({ x: x + 1, y:  y, type: 'star' });
+                            }
+                            else visited[[x + 1, y]].star++;
+                    }
+                    if (samples.star.canPlaceOn(board.data[[x - 1, y]])) {
+                            if (!visited[[x - 1, y]].star) {
+                                visited[[x - 1, y]].star = 0;
+                                result.push({ x: x - 1, y:  y, type: 'star' });
+                            }
+                            else visited[[x - 1, y]].star++;
+                    }
+                    if (samples.star.canPlaceOn(board.data[[x, y + 1]])) {
+                            if (!visited[[x, y + 1]].star) {
+                                visited[[x, y + 1]].star = 0;
+                                result.push({ x: x, y:  y + 1, type: 'star' });
+                            }
+                            else visited[[x, y + 1]].star++;
+                    }
+                    if (samples.star.canPlaceOn(board.data[[x, y - 1]])) {
+                            if (!visited[[x, y - 1]].star) {
+                                visited[[x, y - 1]].star = 0;
+                                result.push({ x: x, y:  y - 1, type: 'star' });
+                            }
+                            else visited[[x, y - 1]].star++;
+                    }
                     
-                    if (samples.star.canPlaceOn(board.data[[x + 1, y + 1]])) visited[[x + 1, y + 1]].star = (visited[[x + 1, y + 1]].star || 0) + 1;
-                    if (samples.star.canPlaceOn(board.data[[x - 1, y - 1]])) visited[[x - 1, y - 1]].star = (visited[[x - 1, y - 1]].star || 0) + 1;
-                    if (samples.star.canPlaceOn(board.data[[x - 1, y + 1]])) visited[[x - 1, y + 1]].star = (visited[[x - 1, y + 1]].star || 0) + 1;
-                    if (samples.star.canPlaceOn(board.data[[x + 1, y - 1]])) visited[[x + 1, y - 1]].star = (visited[[x + 1, y - 1]].star || 0) + 1;
+                    if (samples.star.canPlaceOn(board.data[[x + 1, y + 1]])) {
+                            if (!visited[[x + 1, y + 1]].star) {
+                                visited[[x + 1, y + 1]].star = 0;
+                                result.push({ x: x + 1, y:  y + 1, type: 'star' });
+                            }
+                            else visited[[x + 1, y + 1]].star++;
+                    }
+                    if (samples.star.canPlaceOn(board.data[[x - 1, y - 1]])) {
+                            if (!visited[[x - 1, y - 1]].star) {
+                                visited[[x - 1, y - 1]].star = 0;
+                                result.push({ x: x - 1, y:  y - 1, type: 'star' });
+                            }
+                            else visited[[x - 1, y - 1]].star++;
+                    }
+                    if (samples.star.canPlaceOn(board.data[[x - 1, y + 1]])) {
+                            if (!visited[[x - 1, y + 1]].star) {
+                                visited[[x - 1, y + 1]].star = 0;
+                                result.push({ x: x - 1, y:  y + 1, type: 'star' });
+                            }
+                            else visited[[x - 1, y + 1]].star++;
+                    }
+                    if (samples.star.canPlaceOn(board.data[[x + 1, y - 1]])) {
+                            if (!visited[[x + 1, y - 1]].star) {
+                                visited[[x + 1, y - 1]].star = 0;
+                                result.push({ x: x + 1, y:  y - 1, type: 'star' });
+                            }
+                            else visited[[x + 1, y - 1]].star++;
+                    }
                     
-                    if (samples.star.canPlaceOn(board.data[[x + 2, y]])) visited[[x + 2, y]].star = (visited[[x + 2, y]].star || 0) + 1;
-                    if (samples.star.canPlaceOn(board.data[[x - 2, y]])) visited[[x - 2, y]].star = (visited[[x - 2, y]].star || 0) + 1;
-                    if (samples.star.canPlaceOn(board.data[[x, y + 2]])) visited[[x, y + 2]].star = (visited[[x, y + 2]].star || 0) + 1;
-                    if (samples.star.canPlaceOn(board.data[[x, y - 2]])) visited[[x, y - 2]].star = (visited[[x, y - 2]].star || 0) + 1;
+                    if (samples.star.canPlaceOn(board.data[[x + 2, y]])) {
+                        if (!visited[[x + 2, y]].star) {
+                            visited[[x + 2, y]].star = 0;
+                            result.push({ x: x + 2, y:  y, type: 'star' });
+                        }
+                        else visited[[x + 2, y]].star++;
+                    }
+                    if (samples.star.canPlaceOn(board.data[[x - 2, y]])) {
+                        if (!visited[[x - 2, y]].star) {
+                            visited[[x - 2, y]].star = 0;
+                            result.push({ x: x - 2, y:  y, type: 'star' });
+                        }
+                        else visited[[x - 2, y]].star++;
+                    }
+                    if (samples.star.canPlaceOn(board.data[[x, y + 2]])) {
+                        if (!visited[[x, y + 2]].star) {
+                            visited[[x, y + 2]].star = 0;
+                            result.push({ x: x, y:  y + 2, type: 'star' });
+                        }
+                        else visited[[x, y + 2]].star++;
+                    }
+                    if (samples.star.canPlaceOn(board.data[[x, y - 2]])) {
+                        if (!visited[[x, y - 2]].star) {
+                            visited[[x, y - 2]].star = 0;
+                            result.push({ x: x, y:  y - 2, type: 'star' });
+                        }
+                        else visited[[x, y - 2]].star++;
+                    }
                     
-                    if (samples.star.canPlaceOn(board.data[[x + 2, y + 2]])) visited[[x + 2, y + 2]].star = (visited[[x + 2, y + 2]].star || 0) + 1;
-                    if (samples.star.canPlaceOn(board.data[[x - 2, y - 2]])) visited[[x - 2, y - 2]].star = (visited[[x - 2, y - 2]].star || 0) + 1;
-                    if (samples.star.canPlaceOn(board.data[[x - 2, y + 2]])) visited[[x - 2, y + 2]].star = (visited[[x - 2, y + 2]].star || 0) + 1;
-                    if (samples.star.canPlaceOn(board.data[[x + 2, y - 2]])) visited[[x + 2, y - 2]].star = (visited[[x + 2, y - 2]].star || 0) + 1;
+                    if (samples.star.canPlaceOn(board.data[[x + 2, y + 2]])) {
+                        if (!visited[[x + 2, y + 2]].star) {
+                            visited[[x + 2, y + 2]].star = 0;
+                            result.push({ x: x + 2, y:  y + 2, type: 'star' });
+                        }
+                        else visited[[x + 2, y + 2]].star++;
+                    }
+                    if (samples.star.canPlaceOn(board.data[[x - 2, y - 2]])) {
+                        if (!visited[[x - 2, y - 2]].star) {
+                            visited[[x - 2, y - 2]].star = 0;
+                            result.push({ x: x - 2, y:  y - 2, type: 'star' });
+                        }
+                        else visited[[x - 2, y - 2]].star++;
+                    }
+                    if (samples.star.canPlaceOn(board.data[[x - 2, y + 2]])) {
+                        if (!visited[[x - 2, y + 2]].star) {
+                            visited[[x - 2, y + 2]].star = 0;
+                            result.push({ x: x - 2, y:  y + 2, type: 'star' });
+                        }
+                        else visited[[x - 2, y + 2]].star++;
+                    }
+                    if (samples.star.canPlaceOn(board.data[[x + 2, y - 2]])) {
+                        if (!visited[[x + 2, y - 2]].star) {
+                            visited[[x + 2, y - 2]].star = 0;
+                            result.push({ x: x + 2, y:  y - 2, type: 'star' });
+                        }
+                        else visited[[x + 2, y - 2]].star++;
+                    }
                 }
-                if (board.stock.circlePlus) {
-                    if (samples.circlePlus.canPlaceOn(board.data[[x + 2, y]])) visited[[x + 2, y]].circlePlus = (visited[[x + 2, y]].circlePlus || 0) + 1;
-                    if (samples.circlePlus.canPlaceOn(board.data[[x - 2, y]])) visited[[x - 2, y]].circlePlus = (visited[[x - 2, y]].circlePlus || 0) + 1;
-                    if (samples.circlePlus.canPlaceOn(board.data[[x, y + 2]])) visited[[x, y + 2]].circlePlus = (visited[[x, y + 2]].circlePlus || 0) + 1;
-                    if (samples.circlePlus.canPlaceOn(board.data[[x, y - 2]])) visited[[x, y - 2]].circlePlus = (visited[[x, y - 2]].circlePlus || 0) + 1;
+                if (board.stock.circlePlus || ignore_stock) {
+                    if (samples.circlePlus.canPlaceOn(board.data[[x + 2, y]])) {
+                        if (!visited[[x + 2, y]].circlePlus) {
+                            visited[[x + 2, y]].circlePlus = 0;
+                            result.push({ x: x + 2, y:  y, type: 'circlePlus' });
+                        }
+                        else visited[[x + 2, y]].circlePlus++;
+                    }
+                    if (samples.circlePlus.canPlaceOn(board.data[[x - 2, y]])) {
+                        if (!visited[[x - 2, y]].circlePlus) {
+                            visited[[x - 2, y]].circlePlus = 0;
+                            result.push({ x: x - 2, y:  y, type: 'circlePlus' });
+                        }
+                        else visited[[x - 2, y]].circlePlus++;
+                    }
+                    if (samples.circlePlus.canPlaceOn(board.data[[x, y + 2]])) {
+                        if (!visited[[x, y + 2]].circlePlus) {
+                            visited[[x, y + 2]].circlePlus = 0;
+                            result.push({ x: x, y:  y + 2, type: 'circlePlus' });
+                        }
+                        else visited[[x, y + 2]].circlePlus++;
+                    }
+                    if (samples.circlePlus.canPlaceOn(board.data[[x, y - 2]])) {
+                        if (!visited[[x, y - 2]].circlePlus) {
+                            visited[[x, y - 2]].circlePlus = 0;
+                            result.push({ x: x, y:  y - 2, type: 'circlePlus' });
+                        }
+                        else visited[[x, y - 2]].circlePlus++;
+                    }
                 }
-                if (board.stock.circleX) {
-                    if (samples.circleX.canPlaceOn(board.data[[x + 2, y + 2]])) visited[[x + 2, y + 2]].circleX = (visited[[x + 2, y + 2]].circleX || 0) + 1;
-                    if (samples.circleX.canPlaceOn(board.data[[x - 2, y - 2]])) visited[[x - 2, y - 2]].circleX = (visited[[x - 2, y - 2]].circleX || 0) + 1;
-                    if (samples.circleX.canPlaceOn(board.data[[x - 2, y + 2]])) visited[[x - 2, y + 2]].circleX = (visited[[x - 2, y + 2]].circleX || 0) + 1;
-                    if (samples.circleX.canPlaceOn(board.data[[x + 2, y - 2]])) visited[[x + 2, y - 2]].circleX = (visited[[x + 2, y - 2]].circleX || 0) + 1;
+                if (board.stock.circleX || ignore_stock) {
+                    if (samples.circleX.canPlaceOn(board.data[[x + 2, y + 2]])) {
+                        if (!visited[[x + 2, y + 2]].circleX) {
+                            visited[[x + 2, y + 2]].circleX = 0;
+                            result.push({ x: x + 2, y:  y + 2, type: 'circleX' });
+                        }
+                        else visited[[x + 2, y + 2]].circleX++;
+                    }
+                    if (samples.circleX.canPlaceOn(board.data[[x - 2, y - 2]])) {
+                        if (!visited[[x - 2, y - 2]].circleX) {
+                            visited[[x - 2, y - 2]].circleX = 0;
+                            result.push({ x: x - 2, y:  y - 2, type: 'circleX' });
+                        }
+                        else visited[[x - 2, y - 2]].circleX++;
+                    }
+                    if (samples.circleX.canPlaceOn(board.data[[x - 2, y + 2]])) {
+                        if (!visited[[x - 2, y + 2]].circleX) {
+                            visited[[x - 2, y + 2]].circleX = 0;
+                            result.push({ x: x - 2, y:  y + 2, type: 'circleX' });
+                        }
+                        else visited[[x - 2, y + 2]].circleX++;
+                    }
+                    if (samples.circleX.canPlaceOn(board.data[[x + 2, y - 2]])) {
+                        if (!visited[[x + 2, y - 2]].circleX) {
+                            visited[[x + 2, y - 2]].circleX = 0;
+                            result.push({ x: x + 2, y:  y - 2, type: 'circleX' });
+                        }
+                        else visited[[x + 2, y - 2]].circleX++;
+                    }
                 }
                 
-                if (board.stock.downLeft) {
-                    if (samples.downLeft.canPlaceOn(board.data[[x + 1, y - 1]])) visited[[x + 1, y - 1]].downLeft = (visited[[x + 1, y - 1]].downLeft || 0) + 1;
-                    if (samples.downLeft.canPlaceOn(board.data[[x + 2, y - 2]])) visited[[x + 2, y - 2]].downLeft = (visited[[x + 2, y - 2]].downLeft || 0) + 1;
+                if (board.stock.downLeft || ignore_stock) {
+                    if (samples.downLeft.canPlaceOn(board.data[[x + 1, y - 1]])) {
+                        if (!visited[[x + 1, y - 1]].downLeft) {
+                            visited[[x + 1, y - 1]].downLeft = 0;
+                            result.push({ x: x + 1, y:  y - 1, type: 'downLeft' });
+                        }
+                        else visited[[x + 1, y - 1]].downLeft++;
+                    }
+                    if (samples.downLeft.canPlaceOn(board.data[[x + 2, y - 2]])) {
+                        if (!visited[[x + 2, y - 2]].downLeft) {
+                            visited[[x + 2, y - 2]].downLeft = 0;
+                            result.push({ x: x + 2, y:  y - 2, type: 'downLeft' });
+                        }
+                        else visited[[x + 2, y - 2]].downLeft++;
+                    }
                 }
-                if (board.stock.downRight) {
-                    if (samples.downRight.canPlaceOn(board.data[[x - 1, y - 1]])) visited[[x - 1, y - 1]].downRight = (visited[[x - 1, y - 1]].downRight || 0) + 1;
-                    if (samples.downRight.canPlaceOn(board.data[[x - 2, y - 2]])) visited[[x - 2, y - 2]].downRight = (visited[[x - 2, y - 2]].downRight || 0) + 1;
+                if (board.stock.downRight || ignore_stock) {
+                    if (samples.downRight.canPlaceOn(board.data[[x - 1, y - 1]])) {
+                        if (!visited[[x - 1, y - 1]].downRight) {
+                            visited[[x - 1, y - 1]].downRight = 0;
+                            result.push({ x: x - 1, y:  y - 1, type: 'downRight' });
+                        }
+                        else visited[[x - 1, y - 1]].downRight++;
+                    }
+                    if (samples.downRight.canPlaceOn(board.data[[x - 2, y - 2]])) {
+                        if (!visited[[x - 2, y - 2]].downRight) {
+                            visited[[x - 2, y - 2]].downRight = 0;
+                            result.push({ x: x - 2, y:  y - 2, type: 'downRight' });
+                        }
+                        else visited[[x - 2, y - 2]].downRight++;
+                    }
                 }
-                if (board.stock.upRight) {
-                    if (samples.upRight.canPlaceOn(board.data[[x - 1, y + 1]])) visited[[x - 1, y + 1]].upRight = (visited[[x - 1, y + 1]].upRight || 0) + 1;
-                    if (samples.upRight.canPlaceOn(board.data[[x - 2, y + 2]])) visited[[x - 2, y + 2]].upRight = (visited[[x - 2, y + 2]].upRight || 0) + 1;
+                if (board.stock.upRight || ignore_stock) {
+                    if (samples.upRight.canPlaceOn(board.data[[x - 1, y + 1]])) {
+                        if (!visited[[x - 1, y + 1]].upRight) {
+                            visited[[x - 1, y + 1]].upRight = 0;
+                            result.push({ x: x - 1, y:  y + 1, type: 'upRight' });
+                        }
+                        else visited[[x - 1, y + 1]].upRight++;
+                    }
+                    if (samples.upRight.canPlaceOn(board.data[[x - 2, y + 2]])) {
+                        if (!visited[[x - 2, y + 2]].upRight) {
+                            visited[[x - 2, y + 2]].upRight = 0;
+                            result.push({ x: x - 2, y:  y + 2, type: 'upRight' });
+                        }
+                        else visited[[x - 2, y + 2]].upRight++;
+                    }
                 }
-                if (board.stock.upLeft) {
-                    if (samples.upLeft.canPlaceOn(board.data[[x + 1, y + 1]])) visited[[x + 1, y + 1]].upLeft = (visited[[x + 1, y + 1]].upLeft || 0) + 1;
-                    if (samples.upLeft.canPlaceOn(board.data[[x + 2, y + 2]])) visited[[x + 2, y + 2]].upLeft = (visited[[x + 2, y + 2]].upLeft || 0) + 1;
+                if (board.stock.upLeft || ignore_stock) {
+                    if (samples.upLeft.canPlaceOn(board.data[[x + 1, y + 1]])) {
+                        if (!visited[[x + 1, y + 1]].upLeft) {
+                            visited[[x + 1, y + 1]].upLeft = 0;
+                            result.push({ x: x + 1, y:  y + 1, type: 'upLeft' });
+                        }
+                        else visited[[x + 1, y + 1]].upLeft++;
+                    }
+                    if (samples.upLeft.canPlaceOn(board.data[[x + 2, y + 2]])) {
+                        if (!visited[[x + 2, y + 2]].upLeft) {
+                            visited[[x + 2, y + 2]].upLeft = 0;
+                            result.push({ x: x + 2, y:  y + 2, type: 'upLeft' });
+                        }
+                        else visited[[x + 2, y + 2]].upLeft++;
+                    }
                 }
                 
-                if (board.stock.down) {
-                    if (samples.down.canPlaceOn(board.data[[x, y - 1]])) visited[[x, y - 1]].down = (visited[[x, y - 1]].down || 0) + 1;
-                    if (samples.down.canPlaceOn(board.data[[x, y - 2]])) visited[[x, y - 2]].down = (visited[[x, y - 2]].down || 0) + 1;
+                if (board.stock.down || ignore_stock) {
+                    if (samples.down.canPlaceOn(board.data[[x, y - 1]])) {
+                        if (!visited[[x, y - 1]].down) {
+                            visited[[x, y - 1]].down = 0;
+                            result.push({ x: x, y:  y - 1, type: 'down' });
+                        }
+                        else visited[[x, y - 1]].down++;
+                    }
+                    if (samples.down.canPlaceOn(board.data[[x, y - 2]])) {
+                        if (!visited[[x, y - 2]].down) {
+                            visited[[x, y - 2]].down = 0;
+                            result.push({ x: x, y:  y - 2, type: 'down' });
+                        }
+                        else visited[[x, y - 2]].down++;
+                    }
                 }
-                if (board.stock.up) {
-                    if (samples.up.canPlaceOn(board.data[[x, y + 1]])) visited[[x, y + 1]].up = (visited[[x, y + 1]].up || 0) + 1;
-                    if (samples.up.canPlaceOn(board.data[[x, y + 2]])) visited[[x, y + 2]].up = (visited[[x, y + 2]].up || 0) + 1;
+                if (board.stock.up || ignore_stock) {
+                    if (samples.up.canPlaceOn(board.data[[x, y + 1]])) {
+                        if (!visited[[x, y + 1]].up) {
+                            visited[[x, y + 1]].up = 0;
+                            result.push({ x: x, y:  y + 1, type: 'up' });
+                        }
+                        else visited[[x, y + 1]].up++;
+                    }
+                    if (samples.up.canPlaceOn(board.data[[x, y + 2]])) {
+                        if (!visited[[x, y + 2]].up) {
+                            visited[[x, y + 2]].up = 0;
+                            result.push({ x: x, y:  y + 2, type: 'up' });
+                        }
+                        else visited[[x, y + 2]].up++;
+                    }
                 }
-                if (board.stock.left) {
-                    if (samples.left.canPlaceOn(board.data[[x + 1, y]])) visited[[x + 1, y]].left = (visited[[x + 1, y]].left || 0) + 1;
-                    if (samples.left.canPlaceOn(board.data[[x + 2, y]])) visited[[x + 2, y]].left = (visited[[x + 2, y]].left || 0) + 1;
+                if (board.stock.left || ignore_stock) {
+                    if (samples.left.canPlaceOn(board.data[[x + 1, y]])) {
+                        if (!visited[[x + 1, y]].left) {
+                            visited[[x + 1, y]].left = 0;
+                            result.push({ x: x + 1, y:  y, type: 'left' });
+                        }
+                        else visited[[x + 1, y]].left++;
+                    }
+                    if (samples.left.canPlaceOn(board.data[[x + 2, y]])) {
+                        if (!visited[[x + 2, y]].left) {
+                            visited[[x + 2, y]].left = 0;
+                            result.push({ x: x + 2, y:  y, type: 'left' });
+                        }
+                        else visited[[x + 2, y]].left++;
+                    }
                 }
-                if (board.stock.right) {
-                    if (samples.right.canPlaceOn(board.data[[x - 1, y]])) visited[[x - 1, y]].right = (visited[[x - 1, y]].right || 0) + 1;
-                    if (samples.right.canPlaceOn(board.data[[x - 2, y]])) visited[[x - 2, y]].right = (visited[[x - 2, y]].right || 0) + 1;
+                if (board.stock.right || ignore_stock) {
+                    if (samples.right.canPlaceOn(board.data[[x - 1, y]])) {
+                        if (!visited[[x - 1, y]].right) {
+                            visited[[x - 1, y]].right = 0;
+                            result.push({ x: x - 1, y:  y, type: 'right' });
+                        }
+                        else visited[[x - 1, y]].right++;
+                    }
+                    if (samples.right.canPlaceOn(board.data[[x - 2, y]])) {
+                        if (!visited[[x - 2, y]].right) {
+                            visited[[x - 2, y]].right = 0;
+                            result.push({ x: x - 2, y:  y, type: 'right' });
+                        }
+                        else visited[[x - 2, y]].right++;
+                    }
                 }
                 
-                if (board.stock.circle) {
-                    if (samples.circle.canPlaceOn(board.data[[x, y]])) visited[[x, y]].circle = (visited[[x, y]].circle || 0) + 1;
+                if (board.stock.circle || ignore_stock) {
+                    if (samples.circle.canPlaceOn(board.data[[x, y]])) {
+                        if (!visited[[x, y]].circle) {
+                            visited[[x, y]].circle = 0;
+                            result.push({ x: x, y:  y, type: 'circle' });
+                        }
+                        else visited[[x, y]].circle++;
+                    }
                 }
-                if (board.stock.reclaim) {
-                    if (samples.reclaim.canPlaceOn(board.data[[x, y]])) visited[[x, y]].reclaim = (visited[[x, y]].reclaim || 0) + 1;
+                if (board.stock.reclaim || ignore_stock) {
+                    if (samples.reclaim.canPlaceOn(board.data[[x, y]])) {
+                        if (!visited[[x, y]].reclaim) {
+                            visited[[x, y]].reclaim = 0;
+                            result.push({ x: x, y:  y, type: 'reclaim' });
+                        }
+                        else visited[[x, y]].reclaim++;
+                    }
                 }
                 
-                if (board.stock.mine) {
+                if (board.stock.mine || ignore_stock) {
                     for (let maybe_block of board.data[[x, y]].properties.range) {
                         visited[maybe_block].mine = (visited[maybe_block].mine || 0) + 1;
                     }
                     
                     if (board.data[[x, y]].type == 'x' || board.data[[x, y]].type == 'star') {
-                        if (samples.mine.canPlaceOn(board.data[[x + 2, y + 2]])) visited[[x + 2, y + 2]].mine = (visited[[x + 2, y + 2]].mine || 0) + 1;
-                        if (samples.mine.canPlaceOn(board.data[[x - 2, y - 2]])) visited[[x - 2, y - 2]].mine = (visited[[x - 2, y - 2]].mine || 0) + 1;
-                        if (samples.mine.canPlaceOn(board.data[[x - 2, y + 2]])) visited[[x - 2, y + 2]].mine = (visited[[x - 2, y + 2]].mine || 0) + 1;
-                        if (samples.mine.canPlaceOn(board.data[[x + 2, y - 2]])) visited[[x + 2, y - 2]].mine = (visited[[x + 2, y - 2]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x + 2, y + 2]])) {
+                            if (!visited[[x + 2, y + 2]].mine) {
+                                visited[[x + 2, y + 2]].mine = 0;
+                                result.push({ x: x + 2, y:  y + 2, type: 'mine' });
+                            }
+                            else visited[[x + 2, y + 2]].mine++;
+                        }
+                        if (samples.mine.canPlaceOn(board.data[[x - 2, y - 2]])) {
+                            if (!visited[[x - 2, y - 2]].mine) {
+                                visited[[x - 2, y - 2]].mine = 0;
+                                result.push({ x: x - 2, y:  y - 2, type: 'mine' });
+                            }
+                            else visited[[x - 2, y - 2]].mine++;
+                        }
+                        if (samples.mine.canPlaceOn(board.data[[x - 2, y + 2]])) {
+                            if (!visited[[x - 2, y + 2]].mine) {
+                                visited[[x - 2, y + 2]].mine = 0;
+                                result.push({ x: x - 2, y:  y + 2, type: 'mine' });
+                            }
+                            else visited[[x - 2, y + 2]].mine++;
+                        }
+                        if (samples.mine.canPlaceOn(board.data[[x + 2, y - 2]])) {
+                            if (!visited[[x + 2, y - 2]].mine) {
+                                visited[[x + 2, y - 2]].mine = 0;
+                                result.push({ x: x + 2, y:  y - 2, type: 'mine' });
+                            }
+                            else visited[[x + 2, y - 2]].mine++;
+                        }
                     }
                     
                     if (board.data[[x, y]].type == 'plus' || board.data[[x, y]].type == 'star') {
-                        if (samples.mine.canPlaceOn(board.data[[x + 2, y]])) visited[[x + 2, y]].mine = (visited[[x + 2, y]].mine || 0) + 1;
-                        if (samples.mine.canPlaceOn(board.data[[x - 2, y]])) visited[[x - 2, y]].mine = (visited[[x - 2, y]].mine || 0) + 1;
-                        if (samples.mine.canPlaceOn(board.data[[x, y + 2]])) visited[[x, y + 2]].mine = (visited[[x, y + 2]].mine || 0) + 1;
-                        if (samples.mine.canPlaceOn(board.data[[x, y - 2]])) visited[[x, y - 2]].mine = (visited[[x, y - 2]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x + 2, y]])) {
+                            if (!visited[[x + 2, y]].mine) {
+                                visited[[x + 2, y]].mine = 0;
+                                result.push({ x: x + 2, y:  y, type: 'mine' });
+                            }
+                            else visited[[x + 2, y]].mine++;
+                        }
+                        if (samples.mine.canPlaceOn(board.data[[x - 2, y]])) {
+                            if (!visited[[x - 2, y]].mine) {
+                                visited[[x - 2, y]].mine = 0;
+                                result.push({ x: x - 2, y:  y, type: 'mine' });
+                            }
+                            else visited[[x - 2, y]].mine++;
+                        }
+                        if (samples.mine.canPlaceOn(board.data[[x, y + 2]])) {
+                            if (!visited[[x, y + 2]].mine) {
+                                visited[[x, y + 2]].mine = 0;
+                                result.push({ x: x, y:  y + 2, type: 'mine' });
+                            }
+                            else visited[[x, y + 2]].mine++;
+                        }
+                        if (samples.mine.canPlaceOn(board.data[[x, y - 2]])) {
+                            if (!visited[[x, y - 2]].mine) {
+                                visited[[x, y - 2]].mine = 0;
+                                result.push({ x: x, y:  y - 2, type: 'mine' });
+                            }
+                            else visited[[x, y - 2]].mine++;
+                        }
                     }
                     
                     if (board.data[[x, y]].type == 'right') {
-                        if (samples.mine.canPlaceOn(board.data[[x + 2, y]])) visited[[x + 2, y]].mine = (visited[[x + 2, y]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x + 2, y]])) {
+                            if (!visited[[x + 2, y]].mine) {
+                                visited[[x + 2, y]].mine = 0;
+                                result.push({ x: x + 2, y:  y, type: 'mine' });
+                            }
+                            else visited[[x + 2, y]].mine++;
+                        }
                     }
                     
                     if (board.data[[x, y]].type == 'left') {
-                        if (samples.mine.canPlaceOn(board.data[[x - 2, y]])) visited[[x - 2, y]].mine = (visited[[x - 2, y]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x - 2, y]])) {
+                            if (!visited[[x - 2, y]].mine) {
+                                visited[[x - 2, y]].mine = 0;
+                                result.push({ x: x - 2, y:  y, type: 'mine' });
+                            }
+                            else visited[[x - 2, y]].mine++;
+                        }
                     }
                     
                     if (board.data[[x, y]].type == 'up') {
-                        if (samples.mine.canPlaceOn(board.data[[x, y - 2]])) visited[[x, y - 2]].mine = (visited[[x, y - 2]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x, y - 2]])) {
+                            if (!visited[[x, y - 2]].mine) {
+                                visited[[x, y - 2]].mine = 0;
+                                result.push({ x: x, y:  y - 2, type: 'mine' });
+                            }
+                            else visited[[x, y - 2]].mine++;
+                        }
                     }
                     
                     if (board.data[[x, y]].type == 'down') {
-                        if (samples.mine.canPlaceOn(board.data[[x, y + 2]])) visited[[x, y + 2]].mine = (visited[[x, y + 2]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x, y + 2]])) {
+                            if (!visited[[x, y + 2]].mine) {
+                                visited[[x, y + 2]].mine = 0;
+                                result.push({ x: x, y:  y + 2, type: 'mine' });
+                            }
+                            else visited[[x, y + 2]].mine++;
+                        }
                     }
                     
                     if (board.data[[x, y]].type == 'upRight') {
-                        if (samples.mine.canPlaceOn(board.data[[x + 2, y - 2]])) visited[[x + 2, y - 2]].mine = (visited[[x + 2, y - 2]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x + 2, y - 2]])) {
+                            if (!visited[[x + 2, y - 2]].mine) {
+                                visited[[x + 2, y - 2]].mine = 0;
+                                result.push({ x: x + 2, y:  y - 2, type: 'mine' });
+                            }
+                            else visited[[x + 2, y - 2]].mine++;
+                        }
                     }
                     if (board.data[[x, y]].type == 'upLeft') {
-                        if (samples.mine.canPlaceOn(board.data[[x - 2, y - 2]])) visited[[x - 2, y - 2]].mine = (visited[[x - 2, y - 2]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x - 2, y - 2]])) {
+                            if (!visited[[x - 2, y - 2]].mine) {
+                                visited[[x - 2, y - 2]].mine = 0;
+                                result.push({ x: x - 2, y:  y - 2, type: 'mine' });
+                            }
+                            else visited[[x - 2, y - 2]].mine++;
+                        }
                     }
                     if (board.data[[x, y]].type == 'downLeft') {
-                        if (samples.mine.canPlaceOn(board.data[[x - 2, y + 2]])) visited[[x - 2, y + 2]].mine = (visited[[x - 2, y + 2]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x - 2, y + 2]])) {
+                            if (!visited[[x - 2, y + 2]].mine) {
+                                visited[[x - 2, y + 2]].mine = 0;
+                                result.push({ x: x - 2, y:  y + 2, type: 'mine' });
+                            }
+                            else visited[[x - 2, y + 2]].mine++;
+                        }
                     }
                     if (board.data[[x, y]].type == 'downRight') {
-                        if (samples.mine.canPlaceOn(board.data[[x + 2, y + 2]])) visited[[x + 2, y + 2]].mine = (visited[[x + 2, y + 2]].mine || 0) + 1;
+                        if (samples.mine.canPlaceOn(board.data[[x + 2, y + 2]])) {
+                            if (!visited[[x + 2, y + 2]].mine) {
+                                visited[[x + 2, y + 2]].mine = 0;
+                                result.push({ x: x + 2, y:  y + 2, type: 'mine' });
+                            }
+                            else visited[[x + 2, y + 2]].mine++;
+                        }
                     }
                 }
             }
         }
     }
     
-    return visited;
+    return result;
 }
 
 bot.compute_distances = compute_distances;

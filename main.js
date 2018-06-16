@@ -148,18 +148,17 @@ Vue.component('tile', {
                 if (this.highlight.preview) {
                     baseBackground = baseBackground.lighten(.3);
                 }
-                if (this.highlight.left) {
-                    baseBackground = baseBackground.mix(Color('#5f5'));
-                    borderColor = borderColor.mix(Color("#5d5"));
-                }
-                if (this.highlight.right) {
-                    baseBackground = baseBackground.mix(Color('#eae'));
-                    borderColor = borderColor.mix(Color("#c9c"));
-                }
+                // if (this.highlight.left) {
+                //     baseBackground = baseBackground.mix(Color('#5f5'));
+                //     borderColor = borderColor.mix(Color("#5d5"));
+                // }
+                // if (this.highlight.right) {
+                //     baseBackground = baseBackground.mix(Color('#eae'));
+                //     borderColor = borderColor.mix(Color("#c9c"));
+                // }
                 if (typeof this.highlight.weight == 'number') {
                     let val = Math.round(this.highlight.weight * 0xff);
-                    let r = val;
-                    let weightColor = Color(`rgb(${r}, 0, 0)`);
+                    let weightColor = Color(`rgb(0, ${val}, 0)`);
                     baseBackground = baseBackground.mix(weightColor);
                     borderColor = borderColor.mix(weightColor);
                 }
