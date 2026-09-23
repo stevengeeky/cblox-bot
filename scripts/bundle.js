@@ -1965,20 +1965,26 @@ swizzle.wrap = function (fn) {
 
 const tiles = require('./tiles');
 
-exports.traverse = function(x, y, board) {
+exports.traverse = function(x, y, board, placer) {
     let visited = {};
-    
+
     let toExplore = [{x, y}];
     let depth = 1;
     while (toExplore.length > 0) {
         let exploreNext = [];
-        
+
         for (let xy of toExplore) {
             if (visited[[xy.x, xy.y]]) continue;
             if (xy.x < 0 || xy.y < 0 || xy.x >= board.width || xy.y >= board.height) continue;
             visited[[xy.x, xy.y]] = depth;
             let tile = board.get(xy.x, xy.y);
-            
+
+            // Anything on the board conducts for anybody -- the walk does not
+            // stop at tiles the other side placed (see scripts/boardUtil.js).
+            // index.html loads this bundle, not scripts/boardUtil.js, so a
+            // change there has to be rebuilt with scripts/bundle.sh or it never
+            // reaches the running game.
+
             for (let newXY of tile.properties.range) {
                 let newX = newXY[0], newY = newXY[1];
                 let newTile = board.get(newX, newY);

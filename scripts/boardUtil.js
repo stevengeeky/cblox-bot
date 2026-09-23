@@ -4,20 +4,30 @@
 
 const tiles = require('./tiles');
 
-exports.traverse = function(x, y, board) {
+exports.traverse = function(x, y, board, placer) {
     let visited = {};
-    
+
     let toExplore = [{x, y}];
     let depth = 1;
     while (toExplore.length > 0) {
         let exploreNext = [];
-        
+
         for (let xy of toExplore) {
             if (visited[[xy.x, xy.y]]) continue;
             if (xy.x < 0 || xy.y < 0 || xy.x >= board.width || xy.y >= board.height) continue;
             visited[[xy.x, xy.y]] = depth;
             let tile = board.get(xy.x, xy.y);
-            
+
+            // Anything on the board conducts for anybody: a network may run
+            // through tiles the other side placed, which is what makes reclaim
+            // and collisions mean something. An earlier version stopped the
+            // walk at the other side's tiles, and that both produced false
+            // draws and missed real wins (one foreign tile in a nine-tile
+            // route killed the whole line). So there is no ownership test in
+            // the traversal; `placer` is accepted for symmetry with the
+            // callers and ignored. Who has won is decided in main.js (score),
+            // and which line lights up is decided there too (laidSome).
+
             for (let newXY of tile.properties.range) {
                 let newX = newXY[0], newY = newXY[1];
                 let newTile = board.get(newX, newY);
