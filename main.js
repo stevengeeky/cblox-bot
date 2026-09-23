@@ -37,22 +37,40 @@ var COLOR_KEY = 'cblox.yourcolor';
 // never had -- the walk up the winning path.
 var SFX_NAMES = ['move3', 'collision3', 'youwin', 'gameover', 'drawgame', 'newgame', 'hover'];
 var SFX = {};
-SFX_NAMES.forEach(function (n) {
-    try {
-        var a = new Audio('sfx/' + n + '.ogg');
-        a.preload = 'auto';
-        SFX[n] = a;
-    } catch (e) {}
+// browsers refuse to play anything before the first gesture, so nothing is
+// even requested until then -- a page with no sfx/ folder loads clean.
+var sfxArmed = false;
+['pointerdown', 'keydown'].forEach(function (ev) {
+    window.addEventListener(ev, function () { sfxArmed = true; }, { capture: true, once: true });
 });
+// each file is created on first use. a file that fails to load marks its slot
+// false, so it is asked for once and never again; nothing is thrown either way.
+function sfxElement(name) {
+    if (name in SFX) return SFX[name] || null;
+    if (SFX_NAMES.indexOf(name) < 0 || typeof Audio == 'undefined') return (SFX[name] = false);
+    var a = null;
+    try {
+        a = new Audio('sfx/' + name + '.ogg');
+        a.preload = 'auto';
+        a.addEventListener('error', function () { SFX[name] = false; });
+    } catch (e) { a = null; }
+    SFX[name] = a || false;
+    return a;
+}
 // clone so two of the same sound can overlap, and so a second one does not cut
 // the first off mid-note the way replaying a single element does
 function sfx(name, vol, at) {
-    var src = SFX[name];
+    if (!sfxArmed) return;
+    var src = sfxElement(name);
     if (!src) return;
     var go = function () {
         try {
-            var a = src.cloneNode();
+            if (!SFX[name]) return;
+            // the first play of a sound uses the element itself, so a file
+            // that is missing is requested once; clones come from cache after
+            var a = src.readyState >= 2 ? src.cloneNode() : src;
             a.volume = vol == null ? 1 : vol;
+            a.addEventListener('error', function () {});
             var p = a.play();
             if (p && p.catch) p.catch(function () {});
         } catch (e) {}
@@ -688,8 +706,8 @@ window.game = new Vue({
     methods: {
         init: function() {
             // the first game of the session is silent here -- no gesture yet, so
-            // the browser refuses the play and sfx() swallows it. every "play it
-            // again" after that opens the way the original opened.
+            // sfx() does nothing. every "play it again" after that opens the way
+            // the original opened.
             sfx('newgame', 0.6);
             this.turn = 0;
             this.winner = null;
